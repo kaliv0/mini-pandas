@@ -1,0 +1,6 @@
+name: mini-pandas
+dependencies:
+- python=3.11
+- pandas
+- jupyter
+- pytest
