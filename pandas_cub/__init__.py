@@ -50,8 +50,17 @@ class DataFrame:
 
     @columns.setter
     def columns(self, columns):
-        
+        if not isinstance(columns, list):
+            raise TypeError
+        if len(columns) != len(self.columns):
+            raise ValueError
+        if not all(isinstance(col, str) for col in columns):
+            raise TypeError
+        if len(columns) != len(set(columns)):
+           raise ValueError
 
+        new_data = dict(zip(columns, self._data))
+        self._data = new_data
 
     @property
     def shape(self):
