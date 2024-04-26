@@ -50,6 +50,7 @@ class DataFrame:
 
     @columns.setter
     def columns(self, columns):
+        # TODO: error msg
         if not isinstance(columns, list):
             raise TypeError
         if len(columns) != len(self.columns):
@@ -126,12 +127,7 @@ class DataFrame:
 
     @property
     def values(self):
-        """
-        Returns
-        -------
-        A single 2D NumPy array of the underlying data
-        """
-        pass
+        return np.column_stack(tuple(self._data.values()))
 
     @property
     def dtypes(self):

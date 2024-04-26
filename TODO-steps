@@ -1,19 +1,3 @@
-### 9. The `values` property
-
-In pandas, `values` is a property that returns a single array of all the columns of data. Our DataFrame will do the same. Edit the `values` property and concatenate all the column arrays into a single two-dimensional numpy array. Return this array. The numpy `column_stack` function can be helpful here.
-
-Test with `test_values`.
-
-### Hint when returning a DataFrame from a property/method
-
-Many of the next steps require you to return a DataFrame as the result of the property/method. To do so, you will use the DataFrame constructor like this.
-
-```python
-return DataFrame(new_data)
-```
-
-where `new_data` is a dictionary mapping the column names to a one-dimensional numpy array. It is your job to create the `new_data` dictionary correctly.
-
 ### 10. The `dtypes` property
 
 The `dtypes` property will return a two-column DataFrame with the column names in the first column and their data type as a string in the other. Use 'Column Name' and 'Data Type' as column names.
