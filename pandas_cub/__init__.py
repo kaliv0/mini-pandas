@@ -9,6 +9,7 @@ TODO:
 - add error msg
 """
 
+
 class DataFrame:
     def __init__(self, data):
         self._check_input_types(data)
@@ -128,7 +129,6 @@ class DataFrame:
         html += "</tbody></table>"
         return html
 
-
     @property
     def values(self):
         return np.column_stack(tuple(self._data.values()))
@@ -137,23 +137,37 @@ class DataFrame:
     def dtypes(self):
         DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
         data_types = [DTYPE_NAME[row.dtype.kind] for row in self._data.values()]
-        return DataFrame({"Column Name": np.array(self.columns), "Data Type":np.array(data_types)})
+        return DataFrame(
+            {"Column Name": np.array(self.columns), "Data Type": np.array(data_types)}
+        )
 
     def __getitem__(self, item):
         """
-        Use the brackets operator to simultaneously select rows and columns
-        A single string selects one column -> df['colname']
-        A list of strings selects multiple columns -> df[['colname1', 'colname2']]
-        A one column DataFrame of booleans that filters rows -> df[df_bool]
         Row and column selection simultaneously -> df[rs, cs]
             where cs and rs can be integers, slices, or a list of integers
             rs can also be a one-column boolean DataFrame
-
-        Returns
-        -------
-        A subset of the original DataFrame
         """
-        pass
+
+        if isinstance(item, str):
+            # TODO: what should we do if there is no such key?
+            return DataFrame({item: self._data[item]})
+        if isinstance(item, list):
+            return DataFrame({col: self._data[col] for col in item})
+        if isinstance(item, DataFrame):
+            return self._getitem_bool(item)
+        # if we got so far, apparently something is wrong
+        raise TypeError
+
+    def _getitem_bool(self, item):
+        if item.shape[1] != 1:
+            raise ValueError
+
+        bools = next(iter(item._data.values()))
+        if bools.dtype.kind != "b":
+            raise TypeError
+
+        new_data = {col: val[bools] for col, val in self._data.items()}
+        return DataFrame(new_data)
 
     def _getitem_tuple(self, item):
         # simultaneous selection of rows and cols -> df[rs, cs]
@@ -510,11 +524,11 @@ class DataFrame:
     def __le__(self, other):
         return self._oper("__le__", other)
 
-    def __ne__(self, other):
-        return self._oper("__ne__", other)
-
-    def __eq__(self, other):
-        return self._oper("__eq__", other)
+    # def __ne__(self, other):
+    #     return self._oper("__ne__", other)
+    #
+    # def __eq__(self, other):
+    #     return self._oper("__eq__", other)
 
     def _oper(self, op, other):
         """
