@@ -1,24 +1,3 @@
-### 7. The `shape` property
-
-The `shape` property will return a two-item tuple of the number of rows and columns. The property decorator is used again here so that `df.shape` can execute code like a method. We could just make it a normal method and invoke it with `df.shape()` but we are following pandas lead and keeping `shape` as a property.
-
-Test with `test_shape`.
-
-### 8. Visual HTML representation in the notebook with the `_repr_html_` method
-
-Currently we have no representation of our DataFrame. If you try and output your DataFrame, you'll just get its location in memory and it will look something like this:
-
-```python
->>> df
-<pandas_cub.DataFrame at 0x116d405c0>
-```
-
-The `_repr_html_` method is made available to developers by iPython so that your objects can have nicely formatted HTML displays within Jupyter Notebooks. Read more on this method [here in the iPython documentation][12] along with other similar methods for different representations.
-
-This method must return a string of html. This method is fairly complex and you must know some basic html to complete it. I recommend copying and pasting the implementation from pandas_cub_final instead of doing it yourself.
-
-If you do know HTML and are seeking a greater challenger use the docstrings to give you an idea of how the HTML may be formatted. There are no tests for this method.
-
 ### 9. The `values` property
 
 In pandas, `values` is a property that returns a single array of all the columns of data. Our DataFrame will do the same. Edit the `values` property and concatenate all the column arrays into a single two-dimensional numpy array. Return this array. The numpy `column_stack` function can be helpful here.
