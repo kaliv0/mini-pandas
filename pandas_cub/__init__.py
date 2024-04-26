@@ -2,6 +2,12 @@ import numpy as np
 
 __version__ = "0.0.1"
 
+"""
+TODO:
+- add docstrings
+- when looping through self._data.values() -> use 'rows' instead of 'vals'
+- add error msg
+"""
 
 class DataFrame:
     def __init__(self, data):
@@ -14,7 +20,6 @@ class DataFrame:
         self._add_docs()
 
     def _check_input_types(self, data):
-        # TODO: add error msg
         if not isinstance(data, dict):
             raise TypeError
         for col, val in data.items():
@@ -50,7 +55,6 @@ class DataFrame:
 
     @columns.setter
     def columns(self, columns):
-        # TODO: error msg
         if not isinstance(columns, list):
             raise TypeError
         if len(columns) != len(self.columns):
@@ -131,14 +135,9 @@ class DataFrame:
 
     @property
     def dtypes(self):
-        """
-        Returns
-        -------
-        A two-column DataFrame of column names in one column and
-        their data type in the other
-        """
         DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
-        pass
+        data_types = [DTYPE_NAME[row.dtype.kind] for row in self._data.values()]
+        return DataFrame({"Column Name": np.array(self.columns), "Data Type":np.array(data_types)})
 
     def __getitem__(self, item):
         """
