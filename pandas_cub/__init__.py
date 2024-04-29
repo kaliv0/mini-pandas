@@ -5,8 +5,8 @@ __version__ = "0.0.1"
 """
 TODO:
 - add docstrings
-- when looping through self._data.values() -> use 'rows' instead of 'vals'
 - add error msg
+- refactor df_repr (html build)
 """
 
 
@@ -34,18 +34,14 @@ class DataFrame:
     def _check_array_lengths(self, data: dict):
         vals = iter(data.values())
         val_len = len(next(vals))
-        for val in vals:
-            if len(val) != val_len:
-                raise ValueError
+        if any(len(val) != val_len for val in vals):
+            raise ValueError
 
     def _convert_unicode_to_object(self, data):
-        new_data = {}
-        for col, val in data.items():
-            if val.dtype.kind == "U":
-                new_data[col] = val.astype("O")
-            else:
-                new_data[col] = val
-        return new_data
+        return {
+            col: val.astype("O") if val.dtype.kind == "U" else val
+            for col, val in data.items()
+        }
 
     def __len__(self):
         return len(next(iter(self._data.values())))
@@ -60,7 +56,7 @@ class DataFrame:
             raise TypeError
         if len(columns) != len(self.columns):
             raise ValueError
-        if not all(isinstance(col, str) for col in columns):
+        if any(not isinstance(col, str) for col in columns):
             raise TypeError
         if len(columns) != len(set(columns)):
             raise ValueError
@@ -155,23 +151,68 @@ class DataFrame:
             return DataFrame({col: self._data[col] for col in item})
         if isinstance(item, DataFrame):
             return self._getitem_bool(item)
+        if isinstance(item, tuple):
+            return self._getitem_tuple(item)
         # if we got so far, apparently something is wrong
         raise TypeError
 
     def _getitem_bool(self, item):
-        if item.shape[1] != 1:
-            raise ValueError
-
-        bools = next(iter(item._data.values()))
-        if bools.dtype.kind != "b":
-            raise TypeError
-
+        bools = self._get_df_selection(item)
         new_data = {col: val[bools] for col, val in self._data.items()}
         return DataFrame(new_data)
 
     def _getitem_tuple(self, item):
         # simultaneous selection of rows and cols -> df[rs, cs]
-        pass
+        if len(item) != 2:
+            raise ValueError
+
+        row_selection = self._get_row_selection(item[0])
+        col_selection = self._get_col_selection(item[1])
+        new_data = {col: self._data[col][row_selection] for col in col_selection}
+        return DataFrame(new_data)
+
+    def _get_row_selection(self, selection):
+        if isinstance(selection, int):
+            return [selection]
+        if isinstance(selection, DataFrame):
+            return self._get_df_selection(selection)
+        if not isinstance(selection, (list, slice)):
+            raise TypeError
+        return selection
+
+    def _get_col_selection(self, selection):
+        if isinstance(selection, int):
+            return [self.columns[selection]]
+        if isinstance(selection, str):
+            return [selection]
+        if isinstance(selection, list):
+            return [
+                self.columns[col] if isinstance(col, int) else col for col in selection
+            ]
+        if isinstance(selection, slice):
+            start = (
+                self.columns.index(selection.start)
+                if isinstance(selection.start, str)
+                else selection.start
+            )
+            stop = (
+                self.columns.index(selection.stop) + 1
+                if isinstance(selection.stop, str)
+                else selection.stop
+            )
+            step = selection.step
+            return self.columns[start:stop:step]
+        # Column selection must be either an int, string, list, or slice
+        raise TypeError
+
+    @staticmethod
+    def _get_df_selection(item):
+        if item.shape[1] != 1:
+            raise ValueError
+        df_selection = next(iter(item._data.values()))
+        if df_selection.dtype.kind != "b":
+            raise TypeError
+        return df_selection
 
     def _ipython_key_completions_(self):
         # allows for tab completion when doing df['c
