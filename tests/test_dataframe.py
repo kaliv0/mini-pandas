@@ -3,6 +3,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import pandas_cub as pdc
+
 # import pandas_cub_final as pdc
 from tests import assert_df_equals
 
@@ -201,48 +202,48 @@ class TestSelection:
         with pytest.raises(TypeError):
             df[:, set()]
 
+    def test_tab_complete(self):
+        assert ["a", "b", "c", "d", "e"] == df._ipython_key_completions_()
 
-#     def test_tab_complete(self):
-#         assert ["a", "b", "c", "d", "e"] == df._ipython_key_completions_()
-#
-#     def test_new_column(self):
-#         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
-#         f = np.array([1.5, 23, 4.11])
-#         df_result["f"] = f
-#         df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
-#         df_result["f"] = True
-#         f = np.repeat(True, 3)
-#         df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
-#         f = np.array([1.5, 23, 4.11])
-#         df_result["c"] = f
-#         df_answer = pdc.DataFrame({"a": a, "b": b, "c": f, "d": d, "e": e})
-#         assert_df_equals(df_result, df_answer)
-#
-#         with pytest.raises(NotImplementedError):
-#             df[["a", "b"]] = 5
-#
-#         with pytest.raises(ValueError):
-#             df["a"] = np.random.rand(5, 5)
-#
-#         with pytest.raises(ValueError):
-#             df["a"] = np.random.rand(5)
-#
-#         with pytest.raises(ValueError):
-#             df["a"] = df[["a", "b"]]
-#
-#         with pytest.raises(ValueError):
-#             df1 = pdc.DataFrame({"a": np.random.rand(5)})
-#             df["a"] = df1
-#
-#         with pytest.raises(TypeError):
-#             df["a"] = set()
-#
+    def test_new_column(self):
+        df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
+        f = np.array([1.5, 23, 4.11])
+        df_result["f"] = f
+        df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
+        assert_df_equals(df_result, df_answer)
+
+        df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
+        df_result["f"] = True
+        f = np.repeat(True, 3)
+        df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
+        assert_df_equals(df_result, df_answer)
+
+        df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
+        f = np.array([1.5, 23, 4.11])
+        df_result["c"] = f
+        df_answer = pdc.DataFrame({"a": a, "b": b, "c": f, "d": d, "e": e})
+        assert_df_equals(df_result, df_answer)
+
+        with pytest.raises(NotImplementedError):
+            df[["a", "b"]] = 5
+
+        with pytest.raises(ValueError):
+            df["a"] = np.random.rand(5, 5)
+
+        with pytest.raises(ValueError):
+            df["a"] = np.random.rand(5)
+
+        with pytest.raises(ValueError):
+            df["a"] = df[["a", "b"]]
+
+        with pytest.raises(ValueError):
+            df1 = pdc.DataFrame({"a": np.random.rand(5)})
+            df["a"] = df1
+
+        with pytest.raises(TypeError):
+            df["a"] = set()
+
+
 #     def test_head_tail(self):
 #         df_result = df.head(2)
 #         df_answer = pdc.DataFrame(

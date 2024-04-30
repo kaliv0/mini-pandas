@@ -7,6 +7,8 @@ TODO:
 - add docstrings
 - add error msg
 - refactor df_repr (html build)
+- extract as method 'next(iter(item._data.values()))'
+- extract error throwing checks?
 """
 
 
@@ -56,7 +58,7 @@ class DataFrame:
             raise TypeError
         if len(columns) != len(self.columns):
             raise ValueError
-        if any(not isinstance(col, str) for col in columns):
+        if not all(isinstance(col, str) for col in columns):
             raise TypeError
         if len(columns) != len(set(columns)):
             raise ValueError
@@ -216,11 +218,34 @@ class DataFrame:
 
     def _ipython_key_completions_(self):
         # allows for tab completion when doing df['c
-        pass
+        return self.columns
 
     def __setitem__(self, key, value):
         # adds a new column or a overwrites an old column
-        pass
+        if not isinstance(key, str):
+            raise NotImplementedError
+        
+        match value:
+            case np.ndarray():
+                # TODO: extract checks as methods -> pass error messages
+                if value.ndim != 1:
+                    raise ValueError
+                if len(value) != len(self):
+                    raise ValueError  # TODO: different message
+            case DataFrame():
+                if value.shape[1] != 1:
+                    raise ValueError
+                if len(value) != len(self):
+                    raise ValueError
+                value = next(iter(value._data.values()))
+            case str(value) | int(value) | float(value) | bool(value):
+                value = np.repeat(value, len(self))
+            case _:
+                raise TypeError
+
+        if value.dtype.kind == "U":
+            value = value.astype("O")
+        self._data[key] = value
 
     def head(self, n=5):
         """
