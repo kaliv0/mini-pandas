@@ -1,5 +1,6 @@
 import numpy as np
 
+
 __version__ = "0.0.1"
 
 """
@@ -9,6 +10,7 @@ TODO:
 - refactor df_repr (html build)
 - extract as method 'next(iter(item._data.values()))'
 - extract error throwing checks?
+- enable users to do row-wise aggregations
 """
 
 
@@ -28,12 +30,12 @@ class DataFrame:
     def _check_input_types(data):
         if not isinstance(data, dict):
             raise TypeError
-        for col, val in data.items():
+        for col, vals in data.items():
             if not isinstance(col, str):
                 raise TypeError
-            if not isinstance(val, np.ndarray):
+            if not isinstance(vals, np.ndarray):
                 raise TypeError
-            if val.ndim != 1:  # use check_ndim method
+            if vals.ndim != 1:  # use check_ndim method
                 raise ValueError
 
     @staticmethod
@@ -47,11 +49,11 @@ class DataFrame:
     def _convert_unicode_to_object(data):
         return {
             col: (
-                val.astype("O")
-                if val.dtype.kind == "U"  # extract method and use as lambda?
-                else val
+                vals.astype("O")
+                if vals.dtype.kind == "U"  # extract method and use as lambda?
+                else vals
             )
-            for col, val in data.items()
+            for col, vals in data.items()
         }
 
     def __len__(self):
@@ -76,6 +78,7 @@ class DataFrame:
         self._data = new_data
 
     @property
+    # TODO: rename to col_values?
     def rows(self):
         return list(self._data.values())
 
@@ -120,7 +123,7 @@ class DataFrame:
 
     def _getitem_bool(self, item):
         bools = self._get_df_selection(item)
-        new_data = {col: val[bools] for col, val in self._data.items()}
+        new_data = {col: vals[bools] for col, vals in self._data.items()}
         return DataFrame(new_data)
 
     def _getitem_tuple(self, item):
@@ -253,20 +256,15 @@ class DataFrame:
     def argmin(self):
         return self._agg(np.argmin)
 
-    def _agg(self, aggfunc):
-        """
-        Generic aggregation function that applies the
-        aggregation to each column
-
-        Parameters
-        ----------
-        aggfunc: str of the aggregation function name in NumPy
-
-        Returns
-        -------
-        A DataFrame
-        """
-        pass
+    def _agg(self, agg_func):
+        new_data = {}
+        for col, vals in self._data.items():
+            try:
+                agg_val = agg_func(vals)
+            except TypeError:
+                continue
+            new_data[col] = np.array([agg_val])
+        return DataFrame(new_data)
 
     def isna(self):
         """
@@ -658,19 +656,19 @@ class DataFrame:
 
         for i in range(num_head):
             html += f"<tr><td><strong>{i}</strong></td>"
-            for col, values in self._data.items():
-                kind = values.dtype.kind
+            for col, vals in self._data.items():
+                kind = vals.dtype.kind
                 if kind == "f":
-                    html += f"<td>{values[i]:10.3f}</td>"
+                    html += f"<td>{vals[i]:10.3f}</td>"
                 elif kind == "b":
-                    html += f"<td>{values[i]}</td>"
+                    html += f"<td>{vals[i]}</td>"
                 elif kind == "O":
-                    v = values[i]
+                    v = vals[i]
                     if v is None:
                         v = "None"
                     html += f"<td>{v:10}</td>"
                 else:
-                    html += f"<td>{values[i]:10}</td>"
+                    html += f"<td>{vals[i]:10}</td>"
             html += "</tr>"
 
         if not only_head:
@@ -680,19 +678,19 @@ class DataFrame:
             html += "</tr>"
             for i in range(-num_tail, 0):
                 html += f"<tr><td><strong>{len(self) + i}</strong></td>"
-                for col, values in self._data.items():
-                    kind = values.dtype.kind
+                for col, vals in self._data.items():
+                    kind = vals.dtype.kind
                     if kind == "f":
-                        html += f"<td>{values[i]:10.3f}</td>"
+                        html += f"<td>{vals[i]:10.3f}</td>"
                     elif kind == "b":
-                        html += f"<td>{values[i]}</td>"
+                        html += f"<td>{vals[i]}</td>"
                     elif kind == "O":
-                        v = values[i]
+                        v = vals[i]
                         if v is None:
                             v = "None"
                         html += f"<td>{v:10}</td>"
                     else:
-                        html += f"<td>{values[i]:10}</td>"
+                        html += f"<td>{vals[i]:10}</td>"
                 html += "</tr>"
 
         html += "</tbody></table>"
