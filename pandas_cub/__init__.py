@@ -13,6 +13,8 @@ TODO:
 
 
 class DataFrame:
+    DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
+
     def __init__(self, data):
         self._check_input_types(data)
         self._check_array_lengths(data)
@@ -53,7 +55,7 @@ class DataFrame:
         }
 
     def __len__(self):
-        return len(next(iter(self._data.values())))
+        return len(next(iter(self.rows)))
 
     @property
     def columns(self):
@@ -70,8 +72,12 @@ class DataFrame:
         if len(columns) != len(set(columns)):
             raise ValueError
 
-        new_data = dict(zip(columns, self._data.values()))
+        new_data = dict(zip(columns, self.rows))
         self._data = new_data
+
+    @property
+    def rows(self):
+        return list(self._data.values())
 
     @property
     def shape(self):
@@ -79,13 +85,12 @@ class DataFrame:
 
     @property
     def values(self):
-        return np.column_stack(tuple(self._data.values()))
+        return np.column_stack(tuple(self.rows))
 
     @property
     def dtypes(self):
         # TODO: move const on top
-        DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
-        data_types = [DTYPE_NAME[row.dtype.kind] for row in self._data.values()]
+        data_types = [self.DTYPE_NAME[row.dtype.kind] for row in self.rows]
         return DataFrame(
             {
                 "Column Name": np.array(self.columns),
@@ -169,7 +174,7 @@ class DataFrame:
     def _get_df_selection(item):
         if item.shape[1] != 1:
             raise ValueError
-        df_selection = next(iter(item._data.values()))
+        df_selection = next(iter(item.rows))
         if df_selection.dtype.kind != "b":
             raise TypeError
         return df_selection
@@ -179,7 +184,7 @@ class DataFrame:
         return self.columns
 
     def __setitem__(self, key, value):
-        # adds a new column or a overwrites an old column
+        # adds a new column or overwrites an old column
         if not isinstance(key, str):
             raise NotImplementedError
 
@@ -195,7 +200,7 @@ class DataFrame:
                     raise ValueError
                 if len(value) != len(self):
                     raise ValueError
-                value = next(iter(value._data.values()))
+                value = next(iter(value.rows))
             case str() | int() | float() | bool():
                 value = np.repeat(value, len(self))
             case _:
