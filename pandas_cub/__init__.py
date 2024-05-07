@@ -30,7 +30,7 @@ class DataFrame:
                 raise TypeError
             if not isinstance(val, np.ndarray):
                 raise TypeError
-            if val.ndim != 1:
+            if val.ndim != 1:  # use check_ndim method
                 raise ValueError
 
     def _check_array_lengths(self, data: dict):
@@ -41,7 +41,9 @@ class DataFrame:
 
     def _convert_unicode_to_object(self, data):
         return {
-            col: val.astype("O") if val.dtype.kind == "U" else val
+            col: val.astype("O")
+            if val.dtype.kind == "U"  # extract method and use as lambda?
+            else val
             for col, val in data.items()
         }
 
@@ -70,8 +72,6 @@ class DataFrame:
     def shape(self):
         return len(self), len(self.columns)
 
-    # TODO: repr_html
-
     @property
     def values(self):
         return np.column_stack(tuple(self._data.values()))
@@ -81,7 +81,10 @@ class DataFrame:
         DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
         data_types = [DTYPE_NAME[row.dtype.kind] for row in self._data.values()]
         return DataFrame(
-            {"Column Name": np.array(self.columns), "Data Type": np.array(data_types)}
+            {
+                "Column Name": np.array(self.columns),
+                "Data Type": np.array(data_types),
+            }
         )
 
     def __getitem__(self, item):
@@ -91,15 +94,16 @@ class DataFrame:
             rs can also be a one-column boolean DataFrame
         """
 
-        if isinstance(item, str):
-            # TODO: what should we do if there is no such key?
-            return DataFrame({item: self._data[item]})
-        if isinstance(item, list):
-            return DataFrame({col: self._data[col] for col in item})
-        if isinstance(item, DataFrame):
-            return self._getitem_bool(item)
-        if isinstance(item, tuple):
-            return self._getitem_tuple(item)
+        match item:
+            case str():
+                # TODO: what should we do if there is no such key?
+                return DataFrame({item: self._data[item]})
+            case list():
+                return DataFrame({col: self._data[col] for col in item})
+            case DataFrame():
+                return self._getitem_bool(item)
+            case tuple():
+                return self._getitem_tuple(item)
         # if we got so far, apparently something is wrong
         raise TypeError
 
@@ -115,40 +119,45 @@ class DataFrame:
 
         row_selection = self._get_row_selection(item[0])
         col_selection = self._get_col_selection(item[1])
-        new_data = {col: self._data[col][row_selection] for col in col_selection}
+        new_data = {
+            col: self._data[col][row_selection] for col in col_selection
+        }
         return DataFrame(new_data)
 
     def _get_row_selection(self, selection):
-        if isinstance(selection, int):
-            return [selection]
-        if isinstance(selection, DataFrame):
-            return self._get_df_selection(selection)
-        if not isinstance(selection, (list, slice)):
-            raise TypeError
+        match selection:
+            case int():
+                return [selection]
+            case DataFrame():
+                return self._get_df_selection(selection)
+            case _ if type(selection) not in (list, slice):
+                raise TypeError
         return selection
 
     def _get_col_selection(self, selection):
-        if isinstance(selection, int):
-            return [self.columns[selection]]
-        if isinstance(selection, str):
-            return [selection]
-        if isinstance(selection, list):
-            return [
-                self.columns[col] if isinstance(col, int) else col for col in selection
-            ]
-        if isinstance(selection, slice):
-            start = (
-                self.columns.index(selection.start)
-                if isinstance(selection.start, str)
-                else selection.start
-            )
-            stop = (
-                self.columns.index(selection.stop) + 1
-                if isinstance(selection.stop, str)
-                else selection.stop
-            )
-            step = selection.step
-            return self.columns[start:stop:step]
+        match selection:
+            case int():
+                return [self.columns[selection]]
+            case str():
+                return [selection]
+            case list():  # extract methods?
+                return [
+                    self.columns[col] if isinstance(col, int) else col
+                    for col in selection
+                ]
+            case slice():  # extract methods?
+                start = (
+                    self.columns.index(selection.start)
+                    if isinstance(selection.start, str)
+                    else selection.start
+                )
+                stop = (
+                    self.columns.index(selection.stop) + 1
+                    if isinstance(selection.stop, str)
+                    else selection.stop
+                )
+                step = selection.step
+                return self.columns[start:stop:step]
         # Column selection must be either an int, string, list, or slice
         raise TypeError
 
@@ -183,7 +192,7 @@ class DataFrame:
                 if len(value) != len(self):
                     raise ValueError
                 value = next(iter(value._data.values()))
-            case str(value) | int(value) | float(value) | bool(value):
+            case str() | int() | float() | bool():
                 value = np.repeat(value, len(self))
             case _:
                 raise TypeError
@@ -636,6 +645,68 @@ class DataFrame:
         for name in agg_names:
             getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
+    # helpers
+    def _check_ndim(self, value):
+        if value.ndim != 1:
+            raise ValueError
+
+    def _repr_html_(self):
+        html = "<table><thead><tr><th></th>"
+        for col in self.columns:
+            html += f"<th>{col:10}</th>"
+
+        html += "</tr></thead>"
+        html += "<tbody>"
+
+        only_head = False
+        num_head = 10
+        num_tail = 10
+        if len(self) <= 20:
+            only_head = True
+            num_head = len(self)
+
+        for i in range(num_head):
+            html += f"<tr><td><strong>{i}</strong></td>"
+            for col, values in self._data.items():
+                kind = values.dtype.kind
+                if kind == "f":
+                    html += f"<td>{values[i]:10.3f}</td>"
+                elif kind == "b":
+                    html += f"<td>{values[i]}</td>"
+                elif kind == "O":
+                    v = values[i]
+                    if v is None:
+                        v = "None"
+                    html += f"<td>{v:10}</td>"
+                else:
+                    html += f"<td>{values[i]:10}</td>"
+            html += "</tr>"
+
+        if not only_head:
+            html += "<tr><strong><td>...</td></strong>"
+            for i in range(len(self.columns)):
+                html += "<td>...</td>"
+            html += "</tr>"
+            for i in range(-num_tail, 0):
+                html += f"<tr><td><strong>{len(self) + i}</strong></td>"
+                for col, values in self._data.items():
+                    kind = values.dtype.kind
+                    if kind == "f":
+                        html += f"<td>{values[i]:10.3f}</td>"
+                    elif kind == "b":
+                        html += f"<td>{values[i]}</td>"
+                    elif kind == "O":
+                        v = values[i]
+                        if v is None:
+                            v = "None"
+                        html += f"<td>{v:10}</td>"
+                    else:
+                        html += f"<td>{values[i]:10}</td>"
+                html += "</tr>"
+
+        html += "</tbody></table>"
+        return html
+
 
 class StringMethods:
     def __init__(self, df):
@@ -743,61 +814,3 @@ def read_csv(fn):
     A DataFrame
     """
     pass
-
-
-def _repr_html_(self):
-    html = "<table><thead><tr><th></th>"
-    for col in self.columns:
-        html += f"<th>{col:10}</th>"
-
-    html += "</tr></thead>"
-    html += "<tbody>"
-
-    only_head = False
-    num_head = 10
-    num_tail = 10
-    if len(self) <= 20:
-        only_head = True
-        num_head = len(self)
-
-    for i in range(num_head):
-        html += f"<tr><td><strong>{i}</strong></td>"
-        for col, values in self._data.items():
-            kind = values.dtype.kind
-            if kind == "f":
-                html += f"<td>{values[i]:10.3f}</td>"
-            elif kind == "b":
-                html += f"<td>{values[i]}</td>"
-            elif kind == "O":
-                v = values[i]
-                if v is None:
-                    v = "None"
-                html += f"<td>{v:10}</td>"
-            else:
-                html += f"<td>{values[i]:10}</td>"
-        html += "</tr>"
-
-    if not only_head:
-        html += "<tr><strong><td>...</td></strong>"
-        for i in range(len(self.columns)):
-            html += "<td>...</td>"
-        html += "</tr>"
-        for i in range(-num_tail, 0):
-            html += f"<tr><td><strong>{len(self) + i}</strong></td>"
-            for col, values in self._data.items():
-                kind = values.dtype.kind
-                if kind == "f":
-                    html += f"<td>{values[i]:10.3f}</td>"
-                elif kind == "b":
-                    html += f"<td>{values[i]}</td>"
-                elif kind == "O":
-                    v = values[i]
-                    if v is None:
-                        v = "None"
-                    html += f"<td>{v:10}</td>"
-                else:
-                    html += f"<td>{values[i]:10}</td>"
-            html += "</tr>"
-
-    html += "</tbody></table>"
-    return html
