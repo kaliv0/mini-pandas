@@ -22,7 +22,8 @@ class DataFrame:
         self.str = StringMethods(self)
         self._add_docs()
 
-    def _check_input_types(self, data):
+    @staticmethod
+    def _check_input_types(data):
         if not isinstance(data, dict):
             raise TypeError
         for col, val in data.items():
@@ -33,17 +34,21 @@ class DataFrame:
             if val.ndim != 1:  # use check_ndim method
                 raise ValueError
 
-    def _check_array_lengths(self, data: dict):
+    @staticmethod
+    def _check_array_lengths(data: dict):
         vals = iter(data.values())
         val_len = len(next(vals))
         if any(len(val) != val_len for val in vals):
             raise ValueError
 
-    def _convert_unicode_to_object(self, data):
+    @staticmethod
+    def _convert_unicode_to_object(data):
         return {
-            col: val.astype("O")
-            if val.dtype.kind == "U"  # extract method and use as lambda?
-            else val
+            col: (
+                val.astype("O")
+                if val.dtype.kind == "U"  # extract method and use as lambda?
+                else val
+            )
             for col, val in data.items()
         }
 
@@ -78,6 +83,7 @@ class DataFrame:
 
     @property
     def dtypes(self):
+        # TODO: move const on top
         DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
         data_types = [DTYPE_NAME[row.dtype.kind] for row in self._data.values()]
         return DataFrame(
@@ -119,9 +125,7 @@ class DataFrame:
 
         row_selection = self._get_row_selection(item[0])
         col_selection = self._get_col_selection(item[1])
-        new_data = {
-            col: self._data[col][row_selection] for col in col_selection
-        }
+        new_data = {col: self._data[col][row_selection] for col in col_selection}
         return DataFrame(new_data)
 
     def _get_row_selection(self, selection):
@@ -202,34 +206,14 @@ class DataFrame:
         self._data[key] = value
 
     def head(self, n=5):
-        """
-        Return the first n rows
-
-        Parameters
-        ----------
-        n: int
-
-        Returns
-        -------
-        DataFrame
-        """
-        pass
+        # first n rows and all columns
+        return self[:n, :]
 
     def tail(self, n=5):
-        """
-        Return the last n rows
+        # last n rows
+        return self[-n:, :]
 
-        Parameters
-        ----------
-        n: int
-
-        Returns
-        -------
-        DataFrame
-        """
-        pass
-
-    #### Aggregation Methods ####
+    # ### Aggregation Methods ### #
 
     def min(self):
         return self._agg(np.min)
@@ -363,7 +347,7 @@ class DataFrame:
         """
         pass
 
-    #### Non-Aggregation Methods ####
+    # ### Non-Aggregation Methods ### #
 
     def abs(self):
         """
@@ -494,7 +478,7 @@ class DataFrame:
 
         return self._non_agg(func)
 
-    #### Arithmetic and Comparison Operators ####
+    # ### Arithmetic and Comparison Operators ### #
 
     def __add__(self, other):
         return self._oper("__add__", other)
@@ -621,7 +605,8 @@ class DataFrame:
         """
         pass
 
-    def _add_docs(self):
+    @staticmethod
+    def _add_docs():
         agg_names = [
             "min",
             "max",
@@ -646,7 +631,8 @@ class DataFrame:
             getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
     # helpers
-    def _check_ndim(self, value):
+    @staticmethod
+    def _check_ndim(value):
         if value.ndim != 1:
             raise ValueError
 

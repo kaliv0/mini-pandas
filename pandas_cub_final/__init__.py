@@ -212,7 +212,7 @@ class DataFrame:
         -------
         A single 2D NumPy array of the underlying data
         """
-        return np.column_stack(self._data.values())
+        return np.column_stack(tuple(self._data.values()))
 
     @property
     def dtypes(self):
@@ -230,7 +230,9 @@ class DataFrame:
             dtype = DTYPE_NAME[kind]
             dtypes.append(dtype)
 
-        return DataFrame({"Column Name": col_arr, "Data Type": np.array(dtypes)})
+        return DataFrame(
+            {"Column Name": col_arr, "Data Type": np.array(dtypes)}
+        )
 
     def __getitem__(self, item):
         """
@@ -259,7 +261,9 @@ class DataFrame:
         # boolean selection
         if isinstance(item, DataFrame):
             if item.shape[1] != 1:
-                raise ValueError("Can only pass a one column DataFrame for selection")
+                raise ValueError(
+                    "Can only pass a one column DataFrame for selection"
+                )
 
             bool_arr = next(iter(item._data.values()))
             if bool_arr.dtype.kind != "b":
@@ -291,7 +295,9 @@ class DataFrame:
             row_selection = [row_selection]
         elif isinstance(row_selection, DataFrame):
             if row_selection.shape[1] != 1:
-                raise ValueError("Can only pass a one column DataFrame for selection")
+                raise ValueError(
+                    "Can only pass a one column DataFrame for selection"
+                )
             row_selection = next(iter(row_selection._data.values()))
             if row_selection.dtype.kind != "b":
                 raise TypeError("DataFrame must be a boolean")
@@ -345,7 +351,9 @@ class DataFrame:
             if value.ndim != 1:
                 raise ValueError("Setting array must be 1D")
             if len(value) != len(self):
-                raise ValueError("Setting array must be same length as DataFrame")
+                raise ValueError(
+                    "Setting array must be same length as DataFrame"
+                )
         elif isinstance(value, DataFrame):
             if value.shape[1] != 1:
                 raise ValueError("Setting DataFrame must be one column")
@@ -907,7 +915,9 @@ class DataFrame:
                 aggfunc = "size"
                 val_data = np.empty(len(self))
             else:
-                raise ValueError("You cannot provide `aggfunc` when `values` is None")
+                raise ValueError(
+                    "You cannot provide `aggfunc` when `values` is None"
+                )
 
         if rows is not None:
             row_data = self._data[rows]

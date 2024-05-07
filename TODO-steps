@@ -1,9 +1,3 @@
-### 21. `head` and `tail` methods
-
-The `head` and `tail` methods each accept a single integer parameter `n` which is defaulted to 5. Have them return the first/last n rows.
-
-Run `test_head_tail` to complete this.
-
 ### 22. Generic aggregation methods
 
 We will now implement several methods that perform an aggregation. These methods all return a single value for each column. The following aggregation methods are defined.
@@ -254,27 +248,3 @@ The `read_csv` function accepts a single parameter, `fn`, which is a string of t
 Create a dictionary to hold the data and return a new DataFrame. Use the file `employee.csv` in the `data` directory to test your function manually.
 
 Run all the tests in the `TestReadCSV` class.
-
-[0]: https://www.anaconda.com/distribution/
-[1]: https://docs.pytest.org/en/latest/getting-started.html
-[2]: https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html
-[3]: https://en.wikipedia.org/wiki/Test-driven_development
-[4]: https://docs.pytest.org/en/latest/goodpractices.html#conventions-for-python-test-discovery
-[5]: https://en.wikipedia.org/wiki/Pivot_table
-[6]: images/pivot.png
-[7]: https://numpydoc.readthedocs.io/en/latest/format.html
-[8]: https://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.kind.html#numpy.dtype.kind
-[9]: https://www.python.org/dev/peps/pep-0008/#id47
-[10]: https://docs.python.org/3/reference/datamodel.html#specialnames
-[11]: https://stackoverflow.com/questions/17330160/how-does-the-property-decorator-work
-[12]: https://ipython.readthedocs.io/en/stable/config/integrating.html
-[13]: https://docs.python.org/3/reference/datamodel.html
-[14]: https://docs.python.org/3/reference/datamodel.html#emulating-numeric-type
-[15]: https://www.youtube.com/watch?v=ZDa-Z5JzLYM
-[16]: https://docs.scipy.org/doc/numpy/user/quickstart.html
-[17]: images/exec_location.png
-[18]: https://jupyter-client.readthedocs.io/en/latest/kernels.html#making-kernels-for-jupyter
-[19]: https://ipython.readthedocs.io/en/stable/install/kernel_install.html
-[20]: images/change_kernel.png
-[21]: images/exec_location2.png
-[22]: https://www.dunderdata.com/offers/YpStPwfH/checkout

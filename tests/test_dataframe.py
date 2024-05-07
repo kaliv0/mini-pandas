@@ -83,7 +83,9 @@ class TestDataFrameCreation:
 
     def test_dtypes(self):
         cols = np.array(["a", "b", "c", "d", "e"], dtype="O")
-        dtypes = np.array(["string", "string", "float", "bool", "int"], dtype="O")
+        dtypes = np.array(
+            ["string", "string", "float", "bool", "int"], dtype="O"
+        )
 
         df_result = df.dtypes
         df_answer = pdc.DataFrame({"Column Name": cols, "Data Type": dtypes})
@@ -209,13 +211,17 @@ class TestSelection:
         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
         f = np.array([1.5, 23, 4.11])
         df_result["f"] = f
-        df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
+        df_answer = pdc.DataFrame(
+            {"a": a, "b": b, "c": c, "d": d, "e": e, "f": f}
+        )
         assert_df_equals(df_result, df_answer)
 
         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
         df_result["f"] = True
         f = np.repeat(True, 3)
-        df_answer = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e, "f": f})
+        df_answer = pdc.DataFrame(
+            {"a": a, "b": b, "c": c, "d": d, "e": e, "f": f}
+        )
         assert_df_equals(df_result, df_answer)
 
         df_result = pdc.DataFrame({"a": a, "b": b, "c": c, "d": d, "e": e})
@@ -243,21 +249,20 @@ class TestSelection:
         with pytest.raises(TypeError):
             df["a"] = set()
 
+    def test_head_tail(self):
+        df_result = df.head(2)
+        df_answer = pdc.DataFrame(
+            {"a": a[:2], "b": b[:2], "c": c[:2], "d": d[:2], "e": e[:2]}
+        )
+        assert_df_equals(df_result, df_answer)
 
-#     def test_head_tail(self):
-#         df_result = df.head(2)
-#         df_answer = pdc.DataFrame(
-#             {"a": a[:2], "b": b[:2], "c": c[:2], "d": d[:2], "e": e[:2]}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = df.tail(2)
-#         df_answer = pdc.DataFrame(
-#             {"a": a[-2:], "b": b[-2:], "c": c[-2:], "d": d[-2:], "e": e[-2:]}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#
+        df_result = df.tail(2)
+        df_answer = pdc.DataFrame(
+            {"a": a[-2:], "b": b[-2:], "c": c[-2:], "d": d[-2:], "e": e[-2:]}
+        )
+        assert_df_equals(df_result, df_answer)
+
+
 # a1 = np.array(["a", "b", "c"])
 # b1 = np.array([11, 5, 8])
 # c1 = np.array([3.4, np.nan, 5.1])
