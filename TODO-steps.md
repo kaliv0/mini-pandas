@@ -1,11 +1,3 @@
-### 23. `isna` method
-
-The `isna` method will return a DataFrame the same shape as the original but with boolean values for every single value.
-Each value will be tested whether it is missing or not. Use `np.isnan` except in the case for strings which you can use
-a vectorized equality expression to `None`.
-
-Test with `test_isna` found in the `TestOtherMethods` class.
-
 ### 24. `count` method
 
 The `count` method returns a single-row DataFrame with the number of non-missing values for each column. You will want

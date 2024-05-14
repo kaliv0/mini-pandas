@@ -352,30 +352,30 @@ class TestAggregation:
         assert_df_equals(df_result, df_answer)
 
 
-#
-# a3 = np.array(["a", None, "c"])
-# b3 = np.array([11, 5, 8])
-# c3 = np.array([3.4, np.nan, 5.1])
-# df3 = pdc.DataFrame({"a": a3, "b": b3, "c": c3})
-#
-# a4 = np.array(["a", "a", "c"], dtype="O")
-# b4 = np.array([11, 5, 5])
-# c4 = np.array([3.4, np.nan, 3.4])
-# df4 = pdc.DataFrame({"a": a4, "b": b4, "c": c4})
-#
-#
-# class TestOtherMethods:
-#     def test_isna(self):
-#         df_result = df3.isna()
-#         df_answer = pdc.DataFrame(
-#             {
-#                 "a": np.array([False, True, False]),
-#                 "b": np.array([False, False, False]),
-#                 "c": np.array([False, True, False]),
-#             }
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
+a3 = np.array(["a", None, "c"])
+b3 = np.array([11, 5, 8])
+c3 = np.array([3.4, np.nan, 5.1])
+df3 = pdc.DataFrame({"a": a3, "b": b3, "c": c3})
+
+a4 = np.array(["a", "a", "c"], dtype="O")
+b4 = np.array([11, 5, 5])
+c4 = np.array([3.4, np.nan, 3.4])
+df4 = pdc.DataFrame({"a": a4, "b": b4, "c": c4})
+
+
+class TestOtherMethods:
+    def test_isna(self):
+        df_result = df3.isna()
+        df_answer = pdc.DataFrame(
+            {
+                "a": np.array([False, True, False]),
+                "b": np.array([False, False, False]),
+                "c": np.array([False, True, False]),
+            }
+        )
+        assert_df_equals(df_result, df_answer)
+
+
 #     def test_count(self):
 #         df_result = df3.count()
 #         df_answer = pdc.DataFrame(

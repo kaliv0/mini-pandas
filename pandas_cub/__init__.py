@@ -1,6 +1,5 @@
 import numpy as np
 
-
 __version__ = "0.0.1"
 
 """
@@ -92,7 +91,6 @@ class DataFrame:
 
     @property
     def dtypes(self):
-        # TODO: move const on top
         data_types = [self.DTYPE_NAME[row.dtype.kind] for row in self.rows]
         return DataFrame(
             {
@@ -267,14 +265,14 @@ class DataFrame:
         return DataFrame(new_data)
 
     def isna(self):
-        """
-        Determines whether each value in the DataFrame is missing or not
-
-        Returns
-        -------
-        A DataFrame of booleans the same size as the calling DataFrame
-        """
-        pass
+        new_data = {}
+        for col, vals in self._data.items():
+            new_data[col] = (
+                (vals == None)  # element-wise comparison
+                if vals.dtype.kind == "O"
+                else np.isnan(vals)
+            )
+        return DataFrame(new_data)
 
     def count(self):
         """
