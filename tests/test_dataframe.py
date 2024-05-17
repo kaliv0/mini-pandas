@@ -3,6 +3,7 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import pandas_cub as pdc
+
 # import pandas_cub_final as pdc
 from tests import assert_df_equals
 

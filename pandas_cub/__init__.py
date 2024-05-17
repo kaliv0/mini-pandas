@@ -286,14 +286,10 @@ class DataFrame:
         return DataFrame(new_data)
 
     def unique(self):
-        """
-        Finds the unique values of each column
-
-        Returns
-        -------
-        A list of one-column DataFrames
-        """
-        pass
+        dfs = [DataFrame({col: np.unique(vals)}) for col, vals in self._data.items()]
+        if len(dfs) == 1:
+            return dfs[0]
+        return dfs
 
     def nunique(self):
         """
