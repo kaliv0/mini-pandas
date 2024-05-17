@@ -1,19 +1,3 @@
-### 25. `unique` method
-
-This method will return the unique values for each column in the DataFrame. Specifically, it will return a list of
-one-column DataFrames of unique values in each column. If there is a single column, just return the DataFrame.
-
-The reason we use a list of DataFrames is that each column may contain a different number of unique values. Use
-the `unique` numpy function.
-
-Test with `test_unique`
-
-### 26. `nunique` method
-
-Return a single-row DataFrame with the number of unique values for each column.
-
-Test with `test_nunique`
-
 ### 27. `value_counts` method
 
 Return a list of DataFrames, unless there is just one column and then just return a single DataFrame. Each DataFrame

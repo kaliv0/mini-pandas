@@ -3,7 +3,6 @@ import pytest
 from numpy.testing import assert_array_equal
 
 import pandas_cub as pdc
-
 # import pandas_cub_final as pdc
 from tests import assert_df_equals
 
@@ -391,14 +390,14 @@ class TestOtherMethods:
         assert_array_equal(df_result[1].values[:, 0], np.unique(b4))
         assert_array_equal(df_result[2].values[:, 0], np.unique(c4))
 
+    def test_nunique(self):
+        df_result = df4.nunique()
+        df_answer = pdc.DataFrame(
+            {"a": np.array([2]), "b": np.array([2]), "c": np.array([2])}
+        )
+        assert_df_equals(df_result, df_answer)
 
-#     def test_nunique(self):
-#         df_result = df4.nunique()
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([2]), "b": np.array([2]), "c": np.array([2])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
+
 #     def test_rename(self):
 #         df_result = df4.rename({"a": "A", "c": "C"})
 #         df_answer = pdc.DataFrame({"A": a4, "b": b4, "C": c4})

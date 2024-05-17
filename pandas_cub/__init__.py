@@ -267,23 +267,24 @@ class DataFrame:
         return DataFrame(new_data)
 
     def isna(self):
-        new_data = {}
-        for col, vals in self._data.items():
-            new_data[col] = (
-                vals == None  # noqa -> element-wise comparison
-                if vals.dtype.kind == "O"
-                else np.isnan(vals)
-            )
-        return DataFrame(new_data)
+        return DataFrame(
+            {
+                col: (
+                    vals == None  # noqa -> element-wise comparison
+                    if vals.dtype.kind == "O"
+                    else np.isnan(vals)
+                )
+                for col, vals in self._data.items()
+            }
+        )
 
     def count(self):
-        new_data = {}
         df = self.isna()
         length = len(self)
-        for col, vals in df._data.items():
-            # original length of col_vals minus the count of NaN's in df for that column
-            new_data[col] = np.array([length - vals.sum()])
-        return DataFrame(new_data)
+        # original length of col_vals minus the count of NaN's in df for that column
+        return DataFrame(
+            {col: np.array([length - vals.sum()]) for col, vals in df._data.items()}
+        )
 
     def unique(self):
         dfs = [DataFrame({col: np.unique(vals)}) for col, vals in self._data.items()]
@@ -292,14 +293,9 @@ class DataFrame:
         return dfs
 
     def nunique(self):
-        """
-        Find the number of unique values in each column
-
-        Returns
-        -------
-        A DataFrame
-        """
-        pass
+        return DataFrame(
+            {col: np.array([len(np.unique(vals))]) for col, vals in self._data.items()}
+        )
 
     def value_counts(self, normalize=False):
         """
@@ -526,11 +522,11 @@ class DataFrame:
     def __le__(self, other):
         return self._oper("__le__", other)
 
-    # def __ne__(self, other):
-    #     return self._oper("__ne__", other)
-    #
-    # def __eq__(self, other):
-    #     return self._oper("__eq__", other)
+    def __ne__(self, other):
+        return self._oper("__ne__", other)
+
+    def __eq__(self, other):
+        return self._oper("__eq__", other)
 
     def _oper(self, op, other):
         """
