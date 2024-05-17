@@ -322,11 +322,23 @@ class DataFrame:
             raw_counts = raw_counts / raw_counts.sum()
         return keys, raw_counts
 
+    # TODO: we should probably update self._data ?
     def rename(self, columns):
-        pass
+        if not isinstance(columns, dict):
+            raise TypeError
+        return DataFrame(
+            {columns.get(col, col): vals for col, vals in self._data.items()}
+        )
 
+    # TODO: we should probably update self._data ?
     def drop(self, columns):
-        pass
+        if isinstance(columns, str):
+            columns = [columns]
+        elif not isinstance(columns, list):
+            raise TypeError
+        return DataFrame(
+            {col: vals for col, vals in self._data.items() if col not in columns}
+        )
 
     # ### Non-Aggregation Methods ### #
 

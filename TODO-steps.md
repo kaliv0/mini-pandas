@@ -1,17 +1,3 @@
-### 29. `rename` method
-
-The `rename` method renames one or more column names. Accept a dictionary of old column names mapped to new column
-names. Return a DataFrame. Raise a `TypeError` if `columns` is not a dictionary.
-
-Test with`test_rename` within the `TestOtherMethods` class
-
-### 30. `drop` method
-
-Accept a single string or a list of column names as strings. Return a DataFrame without those columns. Raise
-a `TypeError` if a string or list is not provided.
-
-Test with `test_drop`
-
 ### 31. Non-aggregation methods
 
 There are several non-aggregation methods that function similarly. All of the following non-aggregation methods return a
