@@ -131,7 +131,7 @@ class TestSelection:
         df_answer = pdc.DataFrame({"a": a, "c": c})
         assert_df_equals(df_result, df_answer)
 
-    def test_int_selcetion(self):
+    def test_int_selection(self):
         assert_df_equals(df[:, 3], pdc.DataFrame({"d": d}))
 
     def test_simultaneous_tuple(self):
@@ -352,6 +352,8 @@ class TestAggregation:
         assert_df_equals(df_result, df_answer)
 
 
+###############################################
+# TODO: refactor as setUp?
 a3 = np.array(["a", None, "c"])
 b3 = np.array([11, 5, 8])
 c3 = np.array([3.4, np.nan, 5.1])
@@ -375,20 +377,20 @@ class TestOtherMethods:
         )
         assert_df_equals(df_result, df_answer)
 
+    def test_count(self):
+        df_result = df3.count()
+        df_answer = pdc.DataFrame(
+            {"a": np.array([2]), "b": np.array([3]), "c": np.array([2])}
+        )
+        assert_df_equals(df_result, df_answer)
 
-#     def test_count(self):
-#         df_result = df3.count()
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([2]), "b": np.array([3]), "c": np.array([2])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_unique(self):
-#         df_result = df4.unique()
-#         assert_array_equal(df_result[0].values[:, 0], np.unique(a4))
-#         assert_array_equal(df_result[1].values[:, 0], np.unique(b4))
-#         assert_array_equal(df_result[2].values[:, 0], np.unique(c4))
-#
+    def test_unique(self):
+        df_result = df4.unique()
+        assert_array_equal(df_result[0].values[:, 0], np.unique(a4))
+        assert_array_equal(df_result[1].values[:, 0], np.unique(b4))
+        assert_array_equal(df_result[2].values[:, 0], np.unique(c4))
+
+
 #     def test_nunique(self):
 #         df_result = df4.nunique()
 #         df_answer = pdc.DataFrame(

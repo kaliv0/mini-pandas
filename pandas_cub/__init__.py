@@ -77,7 +77,6 @@ class DataFrame:
         self._data = new_data
 
     @property
-    # TODO: rename to col_values?
     def rows(self):
         return list(self._data.values())
 
@@ -116,8 +115,9 @@ class DataFrame:
                 return self._getitem_bool(item)
             case tuple():
                 return self._getitem_tuple(item)
-        # if we got so far, apparently something is wrong
-        raise TypeError
+            case _:
+                # if we got so far, apparently something is wrong
+                raise TypeError
 
     def _getitem_bool(self, item):
         bools = self._get_df_selection(item)
@@ -140,9 +140,10 @@ class DataFrame:
                 return [selection]
             case DataFrame():
                 return self._get_df_selection(selection)
-            case _ if type(selection) not in (list, slice):
+            case list() | slice():
+                return selection
+            case _:
                 raise TypeError
-        return selection
 
     def _get_col_selection(self, selection):
         match selection:
@@ -168,8 +169,9 @@ class DataFrame:
                 )
                 step = selection.step
                 return self.columns[start:stop:step]
-        # Column selection must be either an int, string, list, or slice
-        raise TypeError
+            # Column selection must be either an int, string, list, or slice
+            case _:
+                raise TypeError
 
     @staticmethod
     def _get_df_selection(item):
@@ -268,21 +270,20 @@ class DataFrame:
         new_data = {}
         for col, vals in self._data.items():
             new_data[col] = (
-                (vals == None)  # element-wise comparison
+                vals == None  # noqa -> element-wise comparison
                 if vals.dtype.kind == "O"
                 else np.isnan(vals)
             )
         return DataFrame(new_data)
 
     def count(self):
-        """
-        Counts the number of non-missing values per column
-
-        Returns
-        -------
-        A DataFrame
-        """
-        pass
+        new_data = {}
+        df = self.isna()
+        length = len(self)
+        for col, vals in df._data.items():
+            # original length of col_vals minus the count of NaN's in df for that column
+            new_data[col] = np.array([length - vals.sum()])
+        return DataFrame(new_data)
 
     def unique(self):
         """

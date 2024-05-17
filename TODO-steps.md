@@ -1,10 +1,3 @@
-### 24. `count` method
-
-The `count` method returns a single-row DataFrame with the number of non-missing values for each column. You will want
-to use the result of `isna`.
-
-Test with `test_count`
-
 ### 25. `unique` method
 
 This method will return the unique values for each column in the DataFrame. Specifically, it will return a list of
