@@ -9,7 +9,8 @@ TODO:
 - refactor df_repr (html build)
 - extract as method 'next(iter(item._data.values()))'
 - extract error throwing checks?
-- enable users to do row-wise aggregations
+- enable users to do row-wise aggregations (!?)
+- add property for self._data.items()
 """
 
 
@@ -194,7 +195,7 @@ class DataFrame:
         match value:
             case np.ndarray():
                 # TODO: extract checks as methods -> pass error messages
-                if value.ndim != 1:
+                if value.ndim != 1:  # use check_ndim method
                     raise ValueError
                 if len(value) != len(self):
                     raise ValueError  # TODO: different message
@@ -279,11 +280,11 @@ class DataFrame:
         )
 
     def count(self):
-        df = self.isna()
-        length = len(self)
-        # original length of col_vals minus the count of NaN's in df for that column
         return DataFrame(
-            {col: np.array([length - vals.sum()]) for col, vals in df._data.items()}
+            {
+                col: np.array([len(self) - vals.sum()])
+                for col, vals in self.isna()._data.items()
+            }
         )
 
     def unique(self):
@@ -298,175 +299,68 @@ class DataFrame:
         )
 
     def value_counts(self, normalize=False):
-        """
-        Returns the frequency of each unique value for each column
+        dfs = []
+        for col, values in self._data.items():
+            keys, raw_counts = self._get_keys_row_counts(values, normalize)
+            df = DataFrame(
+                {
+                    col: keys,
+                    "count": raw_counts,
+                }
+            )
+            dfs.append(df)
+        if len(dfs) == 1:
+            return dfs[0]
+        return dfs
 
-        Parameters
-        ----------
-        normalize: bool
-            If True, returns the relative frequencies (percent)
-
-        Returns
-        -------
-        A list of DataFrames or a single DataFrame if one column
-        """
-        pass
+    def _get_keys_row_counts(self, values, normalize):
+        keys, raw_counts = np.unique(values, return_counts=True)
+        order = np.argsort(-raw_counts)
+        keys = keys[order]
+        raw_counts = raw_counts[order]
+        if normalize:
+            raw_counts = raw_counts / raw_counts.sum()
+        return keys, raw_counts
 
     def rename(self, columns):
-        """
-        Renames columns in the DataFrame
-
-        Parameters
-        ----------
-        columns: dict
-            A dictionary mapping the old column name to the new column name
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     def drop(self, columns):
-        """
-        Drops one or more columns from a DataFrame
-
-        Parameters
-        ----------
-        columns: str or list of strings
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     # ### Non-Aggregation Methods ### #
 
     def abs(self):
-        """
-        Takes the absolute value of each value in the DataFrame
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.abs)
 
     def cummin(self):
-        """
-        Finds cumulative minimum by column
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.minimum.accumulate)
 
     def cummax(self):
-        """
-        Finds cumulative maximum by column
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.maximum.accumulate)
 
     def cumsum(self):
-        """
-        Finds cumulative sum by column
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.cumsum)
 
     def clip(self, lower=None, upper=None):
-        """
-        All values less than lower will be set to lower
-        All values greater than upper will be set to upper
-
-        Parameters
-        ----------
-        lower: number or None
-        upper: number or None
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.clip, a_min=lower, a_max=upper)
 
     def round(self, n):
-        """
-        Rounds values to the nearest n decimals
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.round, decimals=n)
 
     def copy(self):
-        """
-        Copies the DataFrame
-
-        Returns
-        -------
-        A DataFrame
-        """
         return self._non_agg(np.copy)
 
     def _non_agg(self, funcname, **kwargs):
-        """
-        Generic non-aggregation function
-
-        Parameters
-        ----------
-        funcname: numpy function
-        kwargs: extra keyword arguments for certain functions
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     def diff(self, n=1):
-        """
-        Take the difference between the current value and
-        the nth value above it.
-
-        Parameters
-        ----------
-        n: int
-
-        Returns
-        -------
-        A DataFrame
-        """
-
         def func():
             pass
 
         return self._non_agg(func)
 
     def pct_change(self, n=1):
-        """
-        Take the percentage difference between the current value and
-        the nth value above it.
-
-        Parameters
-        ----------
-        n: int
-
-        Returns
-        -------
-        A DataFrame
-        """
-
         def func():
             pass
 
@@ -529,74 +423,15 @@ class DataFrame:
         return self._oper("__eq__", other)
 
     def _oper(self, op, other):
-        """
-        Generic operator function
-
-        Parameters
-        ----------
-        op: str name of special method
-        other: the other object being operated on
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     def sort_values(self, by, asc=True):
-        """
-        Sort the DataFrame by one or more values
-
-        Parameters
-        ----------
-        by: str or list of column names
-        asc: boolean of sorting order
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     def sample(self, n=None, frac=None, replace=False, seed=None):
-        """
-        Randomly samples rows the DataFrame
-
-        Parameters
-        ----------
-        n: int
-            number of rows to return
-        frac: float
-            Proportion of the data to sample
-        replace: bool
-            Whether or not to sample with replacement
-        seed: int
-            Seeds the random number generator
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     def pivot_table(self, rows=None, columns=None, values=None, aggfunc=None):
-        """
-        Creates a pivot table from one or two 'grouping' columns.
-
-        Parameters
-        ----------
-        rows: str of column name to group by
-            Optional
-        columns: str of column name to group by
-            Optional
-        values: str of column name to aggregate
-            Required
-        aggfunc: str of aggregation function
-
-        Returns
-        -------
-        A DataFrame
-        """
         pass
 
     @staticmethod
@@ -782,15 +617,4 @@ class StringMethods:
 
 
 def read_csv(fn):
-    """
-    Read in a comma-separated value file as a DataFrame
-
-    Parameters
-    ----------
-    fn: string of file location
-
-    Returns
-    -------
-    A DataFrame
-    """
     pass

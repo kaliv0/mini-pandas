@@ -1,23 +1,3 @@
-### 27. `value_counts` method
-
-Return a list of DataFrames, unless there is just one column and then just return a single DataFrame. Each DataFrame
-will be two columns. The first column name will be the name of the original column. The second column name will be '
-count'. The first column will contain the unique values in the original DataFrame column. The 'count' column will hold
-the frequency of each of those unique values.
-
-Use the numpy `unique` function with `return_counts` set to `True`. Return the DataFrames with sorted counts from
-greatest to least. Use the numpy `argsort` to help with this.
-
-Use the `test_value_counts` test within the `TestGrouping` class.
-
-### 28. Normalize options for `value_counts`
-
-We will modify the `value_counts` method to return relative frequencies. The `value_counts` method also accepts a
-boolean parameter `normalize` that by default is set to `False`. If it is `True`, then return the relative frequencies
-of each value instead.
-
-Test with `test_value_counts_normalize`
-
 ### 29. `rename` method
 
 The `rename` method renames one or more column names. Accept a dictionary of old column names mapped to new column
