@@ -477,8 +477,11 @@ class DataFrame:
                 raise ValueError
             other = next(iter(other._data.values()))
         return DataFrame(
-            # retrieve the underlying numpy array method and call directly -> FIXME?
-            {col: getattr(vals, op)(other) for col, vals in self._data.items()}
+            {
+                # retrieve the underlying numpy array method and call directly
+                col: getattr(vals, op)(other)
+                for col, vals in self._data.items()
+            }
         )
 
     def sort_values(self, by, asc=True):
@@ -516,7 +519,7 @@ class DataFrame:
         agg_dict = self._get_agg_dict(
             col_data, row_data, pivot_type, val_data, agg_func
         )
-        return self._get_pivoted_data_frame(rows, pivot_type, agg_dict, agg_func)
+        return self._create_pivoted_data_frame(rows, pivot_type, agg_dict, agg_func)
 
     def _get_grouping_data(self, columns, rows):
         if rows is None and columns is None:
@@ -573,30 +576,30 @@ class DataFrame:
                     group_dict[(group1, group2)].append(val)
         return group_dict
 
-    def _get_pivoted_data_frame(self, rows, pivot_type, agg_dict, agg_func):
+    def _create_pivoted_data_frame(self, rows, pivot_type, agg_dict, agg_func):
         match pivot_type:
             case PivotType.COLUMNS:
-                return self._get_df_for_pt_columns(agg_dict)
+                return self._create_df_for_pt_columns(agg_dict)
             case PivotType.ROWS:
-                return self._get_df_for_pt_rows(agg_dict, agg_func, rows)
+                return self._create_df_for_pt_rows(agg_dict, agg_func, rows)
             case PivotType.ALL:
-                return self._get_df_for_pt_all(agg_dict, rows)
+                return self._create_df_for_pt_all(agg_dict, rows)
 
     @staticmethod
-    def _get_df_for_pt_columns(agg_dict):
+    def _create_df_for_pt_columns(agg_dict):
         return DataFrame(
             {col_name: np.array([agg_dict[col_name]]) for col_name in sorted(agg_dict)}
         )
 
     @staticmethod
-    def _get_df_for_pt_rows(agg_dict, agg_func, rows):
+    def _create_df_for_pt_rows(agg_dict, agg_func, rows):
         row_arr = np.array(list(agg_dict.keys()))
         val_arr = np.array(list(agg_dict.values()))
         order = np.argsort(row_arr)
         return DataFrame({rows: row_arr[order], agg_func: val_arr[order]})
 
     @staticmethod
-    def _get_df_for_pt_all(agg_dict, rows):
+    def _create_df_for_pt_all(agg_dict, rows):
         row_set = set()
         col_set = set()
         for group in agg_dict:
@@ -617,6 +620,30 @@ class DataFrame:
     def _check_ndim(value):
         if value.ndim != 1:
             raise ValueError
+
+    # def _add_docs(self):
+    #     agg_names = [
+    #         "min",
+    #         "max",
+    #         "mean",
+    #         "median",
+    #         "sum",
+    #         "var",
+    #         "std",
+    #         "any",
+    #         "all",
+    #         "argmax",
+    #         "argmin",
+    #     ]
+    #     agg_doc = """
+    #     Find the {} of each column
+    #
+    #     Returns
+    #     -------
+    #     DataFrame
+    #     """
+    #     for name in agg_names:
+    #         getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
     def _repr_html_(self):
         html = "<table><thead><tr><th></th>"
@@ -766,8 +793,39 @@ class StringMethods:
         return self._str_method(str.encode, col, encoding, errors)
 
     def _str_method(self, method, col, *args):
-        pass
+        old_values = self._df._data[col]  # FIXME
+        if old_values.dtype.kind != "O":
+            raise TypeError("The `str` accessor only works with string columns")
+        return DataFrame(
+            {col: np.array([method(val, *args) if val else val for val in old_values])}
+        )
 
 
 def read_csv(fn):
-    pass
+    values = _read_data_from_file(fn)
+    return _create_data_frame(values)
+
+
+def _create_data_frame(values):
+    new_data = {}
+    for col, vals in values.items():
+        try:
+            new_data[col] = np.array(vals, dtype="int")
+        except ValueError:
+            try:
+                new_data[col] = np.array(vals, dtype="float")
+            except ValueError:
+                new_data[col] = np.array(vals, dtype="O")
+    return DataFrame(new_data)
+
+
+def _read_data_from_file(fn):
+    values = defaultdict(list)
+    with open(fn) as f:
+        header = f.readline()
+        column_names = header.strip("\n").split(",")
+        for line in f:  # TODO: similar to f.readline()?
+            vals = line.strip("\n").split(",")
+            for val, name in zip(vals, column_names):
+                values[name].append(val)
+    return values
