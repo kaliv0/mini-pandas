@@ -1,5 +1,5 @@
 from collections import defaultdict
-from dataclasses import dataclass
+from enum import StrEnum
 
 import numpy as np
 
@@ -7,9 +7,6 @@ __version__ = "0.0.1"
 
 """
 TODO:
-- add docstrings?
-- add error msg
-- refactor df_repr (html build)
 - extract as method 'next(iter(item._data.values()))'
 - - or extract generic method get_first => next(iter())?
 - extract error throwing checks?
@@ -19,51 +16,63 @@ TODO:
 """
 
 
-# TODO: should be enum but it doesn't work
-@dataclass(frozen=True)
-class PivotType:
+class PivotType(StrEnum):
     ROWS = "rows"
     COLUMNS = "columns"
     ALL = "all"
 
 
+class DFType(StrEnum):  # TODO: rename e.g. BOOL="b"
+    U = "U"
+    O = "O"
+    B = "b"
+    F = "f"
+
+
 class DataFrame:
-    DTYPE_NAME = {"O": "string", "i": "int", "f": "float", "b": "bool"}
+    """
+    Two-dimensional, size-mutable, potentially heterogeneous tabular data
+    """
+
+    DTYPE_NAME = {
+        "O": "string",
+        "i": "int",
+        "f": "float",
+        "b": "bool",
+    }  # TODO: extract and combine with DFType
 
     def __init__(self, data):
         self._check_input_types(data)
         self._check_array_lengths(data)
         self._data = self._convert_unicode_to_object(data)
-
-        # Allow for special methods for strings
         self.str = StringMethods(self)
-        # self._add_docs() # TODO: remove?
+        self._add_docs()
 
     @staticmethod
     def _check_input_types(data):
         if not isinstance(data, dict):
-            raise TypeError
+            raise TypeError("`data` must be a dictionary of 1-D NumPy arrays")
         for col, vals in data.items():
             if not isinstance(col, str):
-                raise TypeError
+                raise TypeError("All column names must be strings")
             if not isinstance(vals, np.ndarray):
-                raise TypeError
+                raise TypeError("All values must be a 1-D NumPy array")
             if vals.ndim != 1:  # use check_ndim method
-                raise ValueError
+                raise ValueError("Each value must be a 1-D NumPy array")
 
     @staticmethod
     def _check_array_lengths(data: dict):
         vals = iter(data.values())
         val_len = len(next(vals))
         if any(len(val) != val_len for val in vals):
-            raise ValueError
+            raise ValueError("All values must be the same length")
 
     @staticmethod
     def _convert_unicode_to_object(data):
         return {
             col: (
-                vals.astype("O")
-                if vals.dtype.kind == "U"  # extract method and use as lambda?
+                vals.astype(DFType.O)
+                if vals.dtype.kind == DFType.U  # TODO extract method and use as lambda?
                 else vals
             )
             for col, vals in data.items()
@@ -79,31 +88,39 @@ class DataFrame:
     @columns.setter
     def columns(self, columns):
         if not isinstance(columns, list):
-            raise TypeError
+            raise TypeError("New columns must be a list")
         if len(columns) != len(self.columns):
-            raise ValueError
+            raise ValueError(f"New column length must be {len(self._data)}")
         if not all(isinstance(col, str) for col in columns):
-            raise TypeError
+            raise TypeError("New column names must be strings")
         if len(columns) != len(set(columns)):
-            raise ValueError
+            raise ValueError("Column names must be unique")
+        self._data = dict(zip(columns, self.rows))
 
-        new_data = dict(zip(columns, self.rows))
-        self._data = new_data
-
+    # FIXME -> remove
     @property
     def rows(self):
         return list(self._data.values())
 
     @property
     def shape(self):
+        """
+        Return a tuple representing the dimensionality of the DataFrame
+        """
         return len(self), len(self.columns)
 
     @property
     def values(self):
+        """
+        Return a Numpy representation of the DataFrame
+        """
         return np.column_stack(tuple(self.rows))
 
     @property
     def dtypes(self):
+        """
+        Return the dtypes in the DataFrame.
+        """
         data_types = [self.DTYPE_NAME[row.dtype.kind] for row in self.rows]
         return DataFrame(
             {
@@ -113,15 +130,8 @@ class DataFrame:
         )
 
     def __getitem__(self, item):
-        """
-        Row and column selection simultaneously -> df[rs, cs]
-            where cs and rs can be integers, slices, or a list of integers
-            rs can also be a one-column boolean DataFrame
-        """
-
         match item:
             case str():
-                # TODO: what should we do if there is no such key?
                 return DataFrame({item: self._data[item]})
             case list():
                 return DataFrame({col: self._data[col] for col in item})
@@ -131,7 +141,9 @@ class DataFrame:
                 return self._getitem_tuple(item)
             case _:
                 # if we got so far, apparently something is wrong
-                raise TypeError
+                raise TypeError(
+                    "Select with either a string, a list, or a row and column"
+                )
 
     def _getitem_bool(self, item):
         bools = self._get_df_selection(item)
@@ -141,8 +153,9 @@ class DataFrame:
     def _getitem_tuple(self, item):
         # simultaneous selection of rows and cols -> df[rs, cs]
         if len(item) != 2:
-            raise ValueError
-
+            raise ValueError(
+                "Pass either a single string or a two-item tuple inside the selection operator."
+            )
         row_selection = self._get_row_selection(item[0])
         col_selection = self._get_col_selection(item[1])
         new_data = {col: self._data[col][row_selection] for col in col_selection}
@@ -157,7 +170,9 @@ class DataFrame:
             case list() | slice():
                 return selection
             case _:
-                raise TypeError
+                raise TypeError(
+                    "Row selection must be either an int, slice, list, or DataFrame"
+                )
 
     def _get_col_selection(self, selection):
         match selection:
@@ -185,57 +200,63 @@ class DataFrame:
                 return self.columns[start:stop:step]
             # Column selection must be either an int, string, list, or slice
             case _:
-                raise TypeError
+                raise TypeError(
+                    "Column selection must be either an int, string, list, or slice"
+                )
 
     @staticmethod
     def _get_df_selection(item):
         if item.shape[1] != 1:
-            raise ValueError
+            raise ValueError("Can only pass a one column DataFrame for selection")
         df_selection = next(iter(item.rows))
-        if df_selection.dtype.kind != "b":  # TODO: use DTYPE const
-            raise TypeError
+        if df_selection.dtype.kind != DFType.B:
+            raise TypeError("DataFrame must be a boolean")
         return df_selection
 
-    def _ipython_key_completions_(self):
-        # allows for tab completion when doing df['c
-        return self.columns
-
     def __setitem__(self, key, value):
-        # adds a new column or overwrites an old column
+        # adds a new column or overwrites an old one
         if not isinstance(key, str):
-            raise NotImplementedError
+            raise NotImplementedError("Only able to set a single column")
 
         match value:
             case np.ndarray():
                 # TODO: extract checks as methods -> pass error messages
                 if value.ndim != 1:  # use check_ndim method
-                    raise ValueError
+                    raise ValueError("Setting array must be 1D")
                 if len(value) != len(self):
-                    raise ValueError  # TODO: different message
+                    raise ValueError("Setting array must be same length as DataFrame")
             case DataFrame():
                 if value.shape[1] != 1:
-                    raise ValueError
+                    raise ValueError("Setting DataFrame must be one column")
                 if len(value) != len(self):
-                    raise ValueError
+                    raise ValueError(
+                        "Setting and Calling DataFrames must be the same length"
+                    )
                 value = next(iter(value.rows))
             case str() | int() | float() | bool():
                 value = np.repeat(value, len(self))
             case _:
-                raise TypeError
+                raise TypeError(
+                    "Setting value must be a NParray, DataFrame, integer, string, float, or boolean"
+                )
 
-        if value.dtype.kind == "U":  # TODO: use DTYPE const?
-            value = value.astype("O")
+        if value.dtype.kind == DFType.U:
+            value = value.astype(DFType.O)
         self._data[key] = value
 
     def head(self, n=5):
-        # first n rows and all columns
+        """
+        Return the first n rows
+        """
         return self[:n, :]
 
     def tail(self, n=5):
-        # last n rows
+        """
+        Return the last n rows
+        """
         return self[-n:, :]
 
-    # ### Aggregation Methods ### #
+    # ### Aggregation methods ### #
 
     def min(self):
         return self._agg(np.min)
@@ -281,11 +302,15 @@ class DataFrame:
         return DataFrame(new_data)
 
     def isna(self):
+        """
+        Detect missing values.
+        Return a boolean same-sized object indicating if the values are NA.
+        """
         return DataFrame(
             {
                 col: (
                     vals == None  # noqa -> element-wise comparison
-                    if vals.dtype.kind == "O"  # TODO: use DTYPE const
+                    if vals.dtype.kind == DFType.O
                     else np.isnan(vals)
                 )
                 for col, vals in self._data.items()
@@ -293,6 +318,9 @@ class DataFrame:
         )
 
     def count(self):
+        """
+        Count non-NA cells for each column or row
+        """
         return DataFrame(
             {
                 col: np.array([len(self) - vals.sum()])
@@ -301,17 +329,26 @@ class DataFrame:
         )
 
     def unique(self):
+        """
+        Return distinct elements in specified axis
+        """
         dfs = [DataFrame({col: np.unique(vals)}) for col, vals in self._data.items()]
         if len(dfs) == 1:
             return dfs[0]
         return dfs
 
     def nunique(self):
+        """
+        Count number of distinct elements in specified axis
+        """
         return DataFrame(
             {col: np.array([len(np.unique(vals))]) for col, vals in self._data.items()}
         )
 
     def value_counts(self, normalize=False):
+        """
+        Return a Series containing the frequency of each distinct row in the Dataframe
+        """
         dfs = []
         for col, values in self._data.items():
             keys, raw_counts = self._get_keys_row_counts(values, normalize)
@@ -338,50 +375,87 @@ class DataFrame:
 
     # TODO: we should probably update self._data ?
     def rename(self, columns):
+        """
+        Rename columns
+        """
         if not isinstance(columns, dict):
-            raise TypeError
+            raise TypeError("`columns` must be a dictionary")
         return DataFrame(
             {columns.get(col, col): vals for col, vals in self._data.items()}
         )
 
     # TODO: we should probably update self._data ?
     def drop(self, columns):
+        """
+        Drop specified labels from rows or columns
+        """
         if isinstance(columns, str):
             columns = [columns]
         elif not isinstance(columns, list):
-            raise TypeError
+            raise TypeError("`columns` must be either a string or a list")
         return DataFrame(
             {col: vals for col, vals in self._data.items() if col not in columns}
         )
 
-    # ### Non-Aggregation Methods ### #
+    # ### Non-aggregation methods ### #
 
     def abs(self):
+        """
+        Return a DataFrame with absolute numeric value of each element
+        """
         return self._non_agg(np.abs)
 
     def cummin(self):
+        """
+        Return cumulative minimum over a DataFrame
+        """
         return self._non_agg(np.minimum.accumulate)
 
     def cummax(self):
+        """
+        Return cumulative maximum over a DataFrame
+        """
         return self._non_agg(np.maximum.accumulate)
 
     def cumsum(self):
+        """
+        Return cumulative sum over a DataFrame
+        """
         return self._non_agg(np.cumsum)
 
     def clip(self, lower=None, upper=None):
+        """
+        Trim values at input threshold(s)
+
+        Assigns values outside boundary to boundary values.
+        Thresholds can be singular values or array like,
+        and in the latter case the clipping is performed element-wise in the specified axis
+        """
         return self._non_agg(np.clip, a_min=lower, a_max=upper)
 
     # NB: The `round` method should ignore boolean columns. -> for all others kinds="bif"
     # TODO: use DTYPE const for kinds?
     def round(self, n):
+        """
+        Round a DataFrame to a variable number of decimal places
+        """
         return self._non_agg(np.round, kinds="if", decimals=n)
 
     def copy(self):
+        """
+        Make a copy of this object's indices and data
+        """
         return self._non_agg(np.copy)
 
     def diff(self, n=1):
+        """
+        Calculate the difference of a DataFrame element
+        compared with another element in the DataFrame
+        (default is element in previous row)
+        """
+
         def non_agg_func(values):
-            values = values.astype("float")
+            values = values.astype("float")  # TODO: extract const
             values_shifted = np.roll(values, n)
             values = values - values_shifted
             if n >= 0:
@@ -393,8 +467,12 @@ class DataFrame:
         return self._non_agg(non_agg_func)
 
     def pct_change(self, n=1):
+        """
+        Fractional change between the current and a prior element
+        """
+
         def non_agg_func(values):
-            # TODO: potentially refactor -> similar to diff
+            # TODO: extract const
             values = values.astype("float")
             values_shifted = np.roll(values, n)
             values = values - values_shifted
@@ -410,12 +488,11 @@ class DataFrame:
         return DataFrame(
             {
                 col: func(vals, **kwargs) if vals.dtype.kind in kinds else vals
-                # else vals.copy() # TODO: do we need copy the data -> here and not in other occasions?
                 for col, vals in self._data.items()
             }
         )
 
-    # ### Arithmetic and Comparison Operators ### #
+    # ### Arithmetic and comparison operators ### #
 
     def __add__(self, other):
         return self._oper("__add__", other)
@@ -474,11 +551,11 @@ class DataFrame:
     def _oper(self, op, other):
         if isinstance(other, DataFrame):
             if other.shape[1] != 1:
-                raise ValueError
+                raise ValueError("`other` must be a one-column DataFrame")
             other = next(iter(other._data.values()))
         return DataFrame(
             {
-                # retrieve the underlying numpy array method and call directly
+                # retrieve the underlying numpy array method and call it directly
                 col: getattr(vals, op)(other)
                 for col, vals in self._data.items()
             }
@@ -493,14 +570,14 @@ class DataFrame:
                     [self._data[col] for col in by[::-1]]
                 )  # why?
             case _:
-                raise ValueError
+                raise TypeError("`by` must be a str or a list")
         if asc is False:
             order_indices = order_indices[::-1]
         return self[order_indices.tolist(), :]
 
     def sample(self, n=None, frac=None, replace=False, seed=None):
         if frac is None and n is None:
-            raise ValueError
+            raise ValueError("Pass either `frac` or `n` value")
         if frac:
             if frac <= 0:
                 raise ValueError("`frac` must be positive")
@@ -514,6 +591,9 @@ class DataFrame:
 
     # ### Pivot ### #
     def pivot_table(self, rows=None, columns=None, values=None, agg_func=None):
+        """
+        Create a spreadsheet-style pivot table as a DataFrame
+        """
         col_data, row_data, pivot_type = self._get_grouping_data(columns, rows)
         val_data, agg_func = self._get_agg_data(values, agg_func)
         agg_dict = self._get_agg_dict(
@@ -523,7 +603,7 @@ class DataFrame:
 
     def _get_grouping_data(self, columns, rows):
         if rows is None and columns is None:
-            raise ValueError
+            raise ValueError("`rows` or `columns` cannot both be `None`")
         pivot_type = PivotType.ALL
         row_data = []
         col_data = []
@@ -543,19 +623,21 @@ class DataFrame:
         if values:
             val_data = self._data[values]
             if agg_func is None:
-                raise ValueError
+                raise ValueError(
+                    "You must provide `aggfunc` when `values` is provided."
+                )
         else:
             if agg_func is None:
-                agg_func = "size"
+                agg_func = "size"  # TODO: extract const?
                 val_data = np.empty(len(self))
             else:
-                raise ValueError
+                raise ValueError("You cannot provide `aggfunc` when `values` is None")
         return val_data, agg_func
 
     def _get_agg_dict(self, col_data, row_data, pivot_type, val_data, agg_func):
         group_dict = self._get_group_dict(col_data, row_data, pivot_type, val_data)
         return {
-            # NB: Since `aggf_unc` is a string, you will need to use the builtin `getattr` function
+            # NB: Since `agg_func` is a string, you will need to use the builtin `getattr` function
             # to get the correct numpy function.
             group: getattr(np, agg_func)(np.array(vals))
             for group, vals in group_dict.items()
@@ -615,92 +697,107 @@ class DataFrame:
             )
         return DataFrame(new_data)
 
-    # helpers
+    # ### Helpers ### #
     @staticmethod
-    def _check_ndim(value):
-        if value.ndim != 1:
-            raise ValueError
+    def _add_docs():
+        # TODO: extract const
+        agg_names = [
+            "min",
+            "max",
+            "mean",
+            "median",
+            "sum",
+            "var",
+            "std",
+            "any",
+            "all",
+            "argmax",
+            "argmin",
+        ]
+        agg_doc = """
+        Find the {} of each column
+        """
+        for name in agg_names:
+            getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
-    # def _add_docs(self):
-    #     agg_names = [
-    #         "min",
-    #         "max",
-    #         "mean",
-    #         "median",
-    #         "sum",
-    #         "var",
-    #         "std",
-    #         "any",
-    #         "all",
-    #         "argmax",
-    #         "argmin",
-    #     ]
-    #     agg_doc = """
-    #     Find the {} of each column
-    #
-    #     Returns
-    #     -------
-    #     DataFrame
-    #     """
-    #     for name in agg_names:
-    #         getattr(DataFrame, name).__doc__ = agg_doc.format(name)
+    # ### jupyter helper methods ### #
+    def _ipython_key_completions_(self):
+        return self.columns
 
     def _repr_html_(self):
+        num_head, num_tail, only_head = self._get_building_params()
+        return (
+            self._prepare_html_table()
+            + self._build_html_head(num_head)
+            + self._build_html_body(only_head, num_tail)
+            + self._prepare_html_closing()
+        )
+
+    def _get_building_params(self):
+        # returns num_head, num_tail, only_head
+        if len(self) <= 20:
+            return len(self), 10, True
+        return 10, 10, False
+
+    def _prepare_html_table(self):
         html = "<table><thead><tr><th></th>"
         for col in self.columns:
             html += f"<th>{col:10}</th>"
-
         html += "</tr></thead>"
         html += "<tbody>"
+        return html
 
-        only_head = False
-        num_head = 10
-        num_tail = 10
-        if len(self) <= 20:
-            only_head = True
-            num_head = len(self)
-
+    def _build_html_head(self, num_head):
+        html = ""
         for i in range(num_head):
-            html += f"<tr><td><strong>{i}</strong></td>"
+            html = f"<tr><td><strong>{i}</strong></td>"
             for col, vals in self._data.items():
                 kind = vals.dtype.kind
-                if kind == "f":
-                    html += f"<td>{vals[i]:10.3f}</td>"
-                elif kind == "b":
-                    html += f"<td>{vals[i]}</td>"
-                elif kind == "O":
-                    v = vals[i]
-                    if v is None:
-                        v = "None"
-                    html += f"<td>{v:10}</td>"
-                else:
-                    html += f"<td>{vals[i]:10}</td>"
-            html += "</tr>"
-
-        if not only_head:
-            html += "<tr><strong><td>...</td></strong>"
-            for i in range(len(self.columns)):
-                html += "<td>...</td>"
-            html += "</tr>"
-            for i in range(-num_tail, 0):
-                html += f"<tr><td><strong>{len(self) + i}</strong></td>"
-                for col, vals in self._data.items():
-                    kind = vals.dtype.kind
-                    if kind == "f":
+                match kind:
+                    case DFType.F:
                         html += f"<td>{vals[i]:10.3f}</td>"
-                    elif kind == "b":
+                    case DFType.B:
                         html += f"<td>{vals[i]}</td>"
-                    elif kind == "O":
+                    case DFType.O:
                         v = vals[i]
                         if v is None:
                             v = "None"
                         html += f"<td>{v:10}</td>"
-                    else:
+                    case _:
                         html += f"<td>{vals[i]:10}</td>"
-                html += "</tr>"
-
-        html += "</tbody></table>"
+            html += "</tr>"
         return html
+
+    def _build_html_body(self, only_head, num_tail):
+        if only_head:
+            return ""
+
+        html = "<tr><strong><td>...</td></strong>"
+        for i in range(len(self.columns)):
+            html += "<td>...</td>"
+        html += "</tr>"
+        for i in range(-num_tail, 0):
+            html += f"<tr><td><strong>{len(self) + i}</strong></td>"
+            for col, vals in self._data.items():
+                kind = vals.dtype.kind
+                match kind:
+                    case DFType.F:
+                        html += f"<td>{vals[i]:10.3f}</td>"
+                    case DFType.B:
+                        html += f"<td>{vals[i]}</td>"
+                    case DFType.O:
+                        v = vals[i]
+                        if v is None:
+                            v = "None"
+                        html += f"<td>{v:10}</td>"
+                    case _:
+                        html += f"<td>{vals[i]:10}</td>"
+            html += "</tr>"
+        return html
+
+    @staticmethod
+    def _prepare_html_closing():
+        return "</tbody></table>"
 
 
 class StringMethods:
@@ -794,6 +891,7 @@ class StringMethods:
 
     def _str_method(self, method, col, *args):
         old_values = self._df._data[col]  # FIXME
+        # TODO: use DTYPE
         if old_values.dtype.kind != "O":
             raise TypeError("The `str` accessor only works with string columns")
         return DataFrame(
@@ -802,6 +900,9 @@ class StringMethods:
 
 
 def read_csv(fn):
+    """
+    Read a comma-separated values (csv) file into DataFrame
+    """
     values = _read_data_from_file(fn)
     return _create_data_frame(values)
 
@@ -810,6 +911,7 @@ def _create_data_frame(values):
     new_data = {}
     for col, vals in values.items():
         try:
+            # TODO: use DTYPE, add parsing ass dtype="boolean"?
             new_data[col] = np.array(vals, dtype="int")
         except ValueError:
             try:
@@ -823,8 +925,8 @@ def _read_data_from_file(fn):
     values = defaultdict(list)
     with open(fn) as f:
         header = f.readline()
-        column_names = header.strip("\n").split(",")
-        for line in f:  # TODO: similar to f.readline()?
+        column_names = header.strip("\n").split(",")  # TODO: extract consts
+        for line in f:
             vals = line.strip("\n").split(",")
             for val, name in zip(vals, column_names):
                 values[name].append(val)
