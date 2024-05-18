@@ -514,44 +514,45 @@ class TestOperators:
         assert_df_equals(df_result, df_answer)
 
 
-#
-# a6 = np.array(["b", "c", "a", "a", "b"])
-# b6 = np.array([3.4, 5.1, 2, 1, 6])
-# df6 = pdc.DataFrame({"a": a6, "b": b6})
-#
-# a7 = np.array(["b", "a", "a", "a", "b"])
-# b7 = np.array([3.4, 5.1, 2, 1, 6])
-# df7 = pdc.DataFrame({"a": a7, "b": b7})
-#
-#
-# class TestMoreMethods:
-#     def test_sort_values(self):
-#         df_result = df6.sort_values("a")
-#         a = np.array(["a", "a", "b", "b", "c"])
-#         b = np.array([2, 1, 3.4, 6, 5.1])
-#         df_answer = pdc.DataFrame({"a": a, "b": b})
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_sort_values_desc(self):
-#         df_result = df6.sort_values("a", asc=False)
-#         a = np.array(["c", "b", "b", "a", "a"])
-#         b = np.array([5.1, 6, 3.4, 1, 2])
-#         df_answer = pdc.DataFrame({"a": a, "b": b})
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_sort_values_two(self):
-#         df_result = df7.sort_values(["a", "b"])
-#         a = np.array(["a", "a", "a", "b", "b"])
-#         b = np.array([1, 2, 5.1, 3.4, 6])
-#         df_answer = pdc.DataFrame({"a": a, "b": b})
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_sort_values_two_desc(self):
-#         df_result = df7.sort_values(["a", "b"], asc=False)
-#         a = np.array(["a", "a", "a", "b", "b"])
-#         b = np.array([1, 2, 5.1, 3.4, 6])
-#         df_answer = pdc.DataFrame({"a": a[::-1], "b": b[::-1]})
-#         assert_df_equals(df_result, df_answer)
+a6 = np.array(["b", "c", "a", "a", "b"])
+b6 = np.array([3.4, 5.1, 2, 1, 6])
+df6 = pdc.DataFrame({"a": a6, "b": b6})
+
+a7 = np.array(["b", "a", "a", "a", "b"])
+b7 = np.array([3.4, 5.1, 2, 1, 6])
+df7 = pdc.DataFrame({"a": a7, "b": b7})
+
+
+class TestMoreMethods:
+    def test_sort_values(self):
+        df_result = df6.sort_values("a")
+        a = np.array(["a", "a", "b", "b", "c"])
+        b = np.array([2, 1, 3.4, 6, 5.1])
+        df_answer = pdc.DataFrame({"a": a, "b": b})
+        assert_df_equals(df_result, df_answer)
+
+    def test_sort_values_desc(self):
+        df_result = df6.sort_values("a", asc=False)
+        a = np.array(["c", "b", "b", "a", "a"])
+        b = np.array([5.1, 6, 3.4, 1, 2])
+        df_answer = pdc.DataFrame({"a": a, "b": b})
+        assert_df_equals(df_result, df_answer)
+
+    def test_sort_values_two(self):
+        df_result = df7.sort_values(["a", "b"])
+        a = np.array(["a", "a", "a", "b", "b"])
+        b = np.array([1, 2, 5.1, 3.4, 6])
+        df_answer = pdc.DataFrame({"a": a, "b": b})
+        assert_df_equals(df_result, df_answer)
+
+    def test_sort_values_two_desc(self):
+        df_result = df7.sort_values(["a", "b"], asc=False)
+        a = np.array(["a", "a", "a", "b", "b"])
+        b = np.array([1, 2, 5.1, 3.4, 6])
+        df_answer = pdc.DataFrame({"a": a[::-1], "b": b[::-1]})
+        assert_df_equals(df_result, df_answer)
+
+
 #
 #     def test_sample(self):
 #         df_result = df7.sample(2, seed=1)

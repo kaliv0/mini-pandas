@@ -1,69 +1,3 @@
-### 34. Arithmetic and Comparison Operators
-
-All the common arithmetic and comparison operators will be made available to our DataFrame. For example, `df + 5` uses
-the plus operator to add 5 to each element of the DataFrame. Take a look at some of the following examples:
-
-```python
-df + 5
-df - 5
-df > 5
-df != 5
-5 + df
-5 < df
-```
-
-All the arithmetic and comparison operators have corresponding special methods that are called whenever the operator is
-used. For instance `__add__` is called when the plus operator is used, and `__le__` is called whenever the less than or
-equal to operator is used. See [the full list][14] in the documentation.
-
-Each of these methods accepts a single parameter, which we have named `other`. All of these methods call a more
-generic `_oper` method which you will complete.
-
-Within the `_oper` method check if `other` is a DataFrame. Raise a `ValueError` if this DataFrame not one column.
-Otherwise, reassign `other` to be a 1D array of the values of its only column.
-
-If `other` is not a DataFrame do nothing and continue executing the rest of the method. We will not check directly if
-the types are compatible. Instead we will pass this task onto numpy. So, `df + 5` should work if all the columns in `df`
-are booleans, integers, or floats.
-
-Iterate through all the columns of your DataFrame and apply the operation to each array. You will need to use
-the `getattr` function along with the `op` string to retrieve the underlying numpy array method. For
-instance, `getattr(values, '__add__')` returns the method that uses the plus operator for the numpy array `values`.
-Return a new DataFrame with the operation applied to each column.
-
-Run all the tests in class `TestOperators`
-
-### 35. `sort_values` method
-
-This method will sort the rows of the DataFrame by one or more columns. Allow the parameter `by` to be either a single
-column name as a string or a list of column names as strings. The DataFrame will be sorted by this column or columns.
-
-The second parameter, `asc`, will be a boolean controlling the direction of the sort. It is defaulted to `True`
-indicating that sorting will be ascending  (lowest to greatest). Raise a `TypeError` if `by` is not a string or list.
-
-You will need to use numpy's `argsort` to get the order of the sort for a single column and `lexsort` to sort multiple
-columns.
-
-Run the following tests in the `TestMoreMethods` class.
-
-* `test_sort_values`
-* `test_sort_values_desc`
-* `test_sort_values_two`
-* `test_sort_values_two_desc`
-
-### 36. `sample` method
-
-This method randomly samples the rows of the DataFrame. You can either choose an exact number to sample with `n` or a
-fraction with `frac`. Sample with replacement by using the boolean `replace`. The `seed` parameter will be used to set
-the random number seed.
-
-Raise a `ValueError` if `frac` is not positive and a `TypeError` if `n` is not an integer.
-
-You will be using numpy's random module to complete this method. Within it are the `seed` and `choice` functions. The
-latter function has a `replace` parameter that you will need to use. Return a new DataFrame with the new random rows.
-
-Run `test_sample` to test.
-
 ### 37. `pivot_table` method
 
 This is a complex method to implement. This method allows you to create a [pivot table][5] from your DataFrame. The
@@ -126,14 +60,6 @@ Other features:
   for the values.
 
 Run `test_pivot_table_rows_or_cols` and `test_pivot_table_both` in the `TestGrouping` class.
-
-### 38. Automatically add documentation
-
-All docstrings can be retrieved programmitcally with the `__doc__` special attribute. Docstrings can also be dynamically
-set by assigning this same special attribute a string.
-
-This method is already completed and automatically adds documentation to the aggregation methods by setting
-the `__doc__` special attribute.
 
 ### 39. String-only methods with the `str` accessor
 

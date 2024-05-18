@@ -26,7 +26,7 @@ class DataFrame:
 
         # Allow for special methods for strings
         self.str = StringMethods(self)
-        self._add_docs()
+        # self._add_docs() # TODO: remove?
 
     @staticmethod
     def _check_input_types(data):
@@ -464,43 +464,66 @@ class DataFrame:
                 raise ValueError
             other = next(iter(other._data.values()))
         return DataFrame(
-            # FIXME?
+            # retrieve the underlying numpy array method and call directly -> FIXME?
             {col: getattr(vals, op)(other) for col, vals in self._data.items()}
         )
 
     def sort_values(self, by, asc=True):
-        pass
+        match by:
+            case str():
+                order_indices = np.argsort(self._data[by])
+            case list():
+                order_indices = np.lexsort(
+                    [self._data[col] for col in by[::-1]]
+                )  # why?
+            case _:
+                raise ValueError
+        if not asc:
+            order_indices = order_indices[::-1]
+        return self[order_indices.tolist(), :]
 
     def sample(self, n=None, frac=None, replace=False, seed=None):
-        pass
+        if frac is None and n is None:
+            raise ValueError
+        if frac:
+            if frac <= 0:
+                raise ValueError("`frac` must be positive")
+            n = int(frac * len(self))
+        if not isinstance(n, int):
+            raise TypeError("`n` must be an int")
+        if seed:
+            np.random.seed(seed)
+        rows = np.random.choice(np.arange(len(self)), size=n, replace=replace).tolist()
+        return self[rows, :]
 
     def pivot_table(self, rows=None, columns=None, values=None, aggfunc=None):
         pass
 
-    @staticmethod
-    def _add_docs():
-        agg_names = [
-            "min",
-            "max",
-            "mean",
-            "median",
-            "sum",
-            "var",
-            "std",
-            "any",
-            "all",
-            "argmax",
-            "argmin",
-        ]
-        agg_doc = """
-        Find the {} of each column
-        
-        Returns
-        -------
-        DataFrame
-        """
-        for name in agg_names:
-            getattr(DataFrame, name).__doc__ = agg_doc.format(name)
+    # TODO: remove?
+    # @staticmethod
+    # def _add_docs():
+    #     agg_names = [
+    #         "min",
+    #         "max",
+    #         "mean",
+    #         "median",
+    #         "sum",
+    #         "var",
+    #         "std",
+    #         "any",
+    #         "all",
+    #         "argmax",
+    #         "argmin",
+    #     ]
+    #     agg_doc = """
+    #     Find the {} of each column
+    #
+    #     Returns
+    #     -------
+    #     DataFrame
+    #     """
+    #     for name in agg_names:
+    #         getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
     # helpers
     @staticmethod
