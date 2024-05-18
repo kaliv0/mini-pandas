@@ -408,54 +408,6 @@ class TestOtherMethods:
         assert_df_equals(df_result, df_answer)
 
 
-# a42 = np.array([-11, 5, 3])
-# b42 = np.array([3.4, 5.1, -6])
-# df42 = pdc.DataFrame({"a": a42, "b": b42})
-#
-#
-# class TestNonAgg:
-#     def test_abs(self):
-#         df_result = df42.abs()
-#         df_answer = pdc.DataFrame({"a": np.abs(a42), "b": np.abs(b42)})
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_cummin(self):
-#         df_result = df42.cummin()
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([-11, -11, -11]), "b": np.array([3.4, 3.4, -6])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_cummax(self):
-#         df_result = df42.cummax()
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([-11, 5, 5]), "b": np.array([3.4, 5.1, 5.1])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_cumsum(self):
-#         df_result = df42.cumsum()
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([-11, -6, -3]), "b": np.array([3.4, 8.5, 2.5])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_clip(self):
-#         df_result = df42.clip(0, 4)
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([0, 4, 3]), "b": np.array([3.4, 4, 0])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_round(self):
-#         df_result = df42.round(0)
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array([-11, 5, 3]), "b": np.array([3, 5, -6])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_copy(self):
-#         assert_df_equals(df42, df42.copy())
 #
 #     def test_diff(self):
 #         df_result = df42.diff(1)

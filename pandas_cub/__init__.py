@@ -257,11 +257,11 @@ class DataFrame:
     def argmin(self):
         return self._agg(np.argmin)
 
-    def _agg(self, agg_func):
+    def _agg(self, func):
         new_data = {}
         for col, vals in self._data.items():
             try:
-                agg_val = agg_func(vals)
+                agg_val = func(vals)
             except TypeError:
                 continue
             new_data[col] = np.array([agg_val])
@@ -357,14 +357,21 @@ class DataFrame:
     def clip(self, lower=None, upper=None):
         return self._non_agg(np.clip, a_min=lower, a_max=upper)
 
+    # NB: The `round` method should ignore boolean columns. -> for all others kinds="bif"
     def round(self, n):
-        return self._non_agg(np.round, decimals=n)
+        return self._non_agg(np.round, kinds="if", decimals=n)
 
     def copy(self):
         return self._non_agg(np.copy)
 
-    def _non_agg(self, funcname, **kwargs):
-        pass
+    def _non_agg(self, func, kinds="bif", **kwargs):
+        return DataFrame(
+            {
+                col: func(vals, **kwargs) if vals.dtype.kind in kinds else vals
+                # else vals.copy() # TODO: do we need copy the data -> here and not in other occasions?
+                for col, vals in self._data.items()
+            }
+        )
 
     def diff(self, n=1):
         def func():

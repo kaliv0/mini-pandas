@@ -1,35 +1,3 @@
-### 31. Non-aggregation methods
-
-There are several non-aggregation methods that function similarly. All of the following non-aggregation methods return a
-DataFrame that is the same shape as the origin.
-
-* `abs`
-* `cummin`
-* `cummax`
-* `cumsum`
-* `clip`
-* `round`
-* `copy`
-
-All of the above methods will be implemented with the generic `_non_agg` method. This method is sent the numpy function
-name of the non-aggregating method.
-
-Pass only the boolean, integer, and float columns to this non-aggregating numpy function.
-
-Keep the string columns (only other data type) in your returned DataFrame. Use the `copy` array method to make an
-independent copy of them.
-
-Notice that some of these non-aggregating methods have extra keyword arguments. These are passed to `_non_agg` and
-collected with `**kwargs`. Make sure to pass them to the numpy function as well.
-
-There is a different test for each method in the `TestNonAgg` class.
-
-#### Update after videos
-
-If you are watching my videos for the course, I updated the pandas_cub_final init file to contain a better solution.
-The `round` method should ignore boolean columns. The original solution applied had each non-aggregation method work on
-boolean, integer, and float columns.
-
 ### 32. `diff` method
 
 The `diff` method accepts a single parameter `n` and takes the difference between the current row and the `n` previous
