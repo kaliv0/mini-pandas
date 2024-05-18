@@ -1,27 +1,3 @@
-### 32. `diff` method
-
-The `diff` method accepts a single parameter `n` and takes the difference between the current row and the `n` previous
-row. For instance, if a column has the values [5, 10, 2] and `n=1`, the `diff` method would return [NaN, 5, -8]. The
-first value is missing because there is no value preceding it.
-
-The `diff` method is a non-aggregating method as well, but there is no direct numpy function that computes it. Instead,
-we will define a function within this method that computes this difference.
-
-Complete the body of the `func` function.
-
-Allow `n` to be either a negative or positive integer. You will have to set the first or last n values to `np.nan`. If
-you are doing this on an integer column, you will have to convert it to a float first as integer arrays cannot contain
-missing values. Use `np.roll` to help shift the data in the arrays.
-
-Test with `test_diff`
-
-### 33. `pct_change` method
-
-The `pct_change` method is nearly identical to the `diff` method. The only difference is that this method returns the
-percentage change between the values and not the raw difference. Again, complete the body of the `func` function.
-
-Test with `test_pct_change`
-
 ### 34. Arithmetic and Comparison Operators
 
 All the common arithmetic and comparison operators will be made available to our DataFrame. For example, `df + 5` uses

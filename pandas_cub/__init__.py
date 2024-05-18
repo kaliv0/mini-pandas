@@ -8,9 +8,11 @@ TODO:
 - add error msg
 - refactor df_repr (html build)
 - extract as method 'next(iter(item._data.values()))'
+- - or extract generic method get_first => next(iter())?
 - extract error throwing checks?
 - enable users to do row-wise aggregations (!?)
 - add property for self._data.items()
+- refactor _non_agg method -> extract kinds const (as enum ?) and adjust round method
 """
 
 
@@ -364,6 +366,33 @@ class DataFrame:
     def copy(self):
         return self._non_agg(np.copy)
 
+    def diff(self, n=1):
+        def func(values):
+            values = values.astype("float")
+            values_shifted = np.roll(values, n)
+            values = values - values_shifted
+            if n >= 0:
+                values[:n] = np.NAN
+            else:
+                values[n:] = np.NAN
+            return values
+
+        return self._non_agg(func)
+
+    def pct_change(self, n=1):
+        def func(values):
+            # TODO: potentially refactor -> similar to diff
+            values = values.astype("float")
+            values_shifted = np.roll(values, n)
+            values = values - values_shifted
+            if n >= 0:
+                values[:n] = np.NAN
+            else:
+                values[n:] = np.NAN
+            return values / values_shifted
+
+        return self._non_agg(func)
+
     def _non_agg(self, func, kinds="bif", **kwargs):
         return DataFrame(
             {
@@ -372,18 +401,6 @@ class DataFrame:
                 for col, vals in self._data.items()
             }
         )
-
-    def diff(self, n=1):
-        def func():
-            pass
-
-        return self._non_agg(func)
-
-    def pct_change(self, n=1):
-        def func():
-            pass
-
-        return self._non_agg(func)
 
     # ### Arithmetic and Comparison Operators ### #
 
@@ -442,7 +459,14 @@ class DataFrame:
         return self._oper("__eq__", other)
 
     def _oper(self, op, other):
-        pass
+        if isinstance(other, DataFrame):
+            if other.shape[1] != 1:
+                raise ValueError
+            other = next(iter(other._data.values()))
+        return DataFrame(
+            # FIXME?
+            {col: getattr(vals, op)(other) for col, vals in self._data.items()}
+        )
 
     def sort_values(self, by, asc=True):
         pass
