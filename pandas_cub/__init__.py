@@ -1,10 +1,13 @@
+from collections import defaultdict
+from dataclasses import dataclass
+
 import numpy as np
 
 __version__ = "0.0.1"
 
 """
 TODO:
-- add docstrings
+- add docstrings?
 - add error msg
 - refactor df_repr (html build)
 - extract as method 'next(iter(item._data.values()))'
@@ -14,6 +17,14 @@ TODO:
 - add property for self._data.items()
 - refactor _non_agg method -> extract kinds const (as enum ?) and adjust round method
 """
+
+
+# TODO: should be enum but it doesn't work
+@dataclass(frozen=True)
+class PivotType:
+    ROWS = "rows"
+    COLUMNS = "columns"
+    ALL = "all"
 
 
 class DataFrame:
@@ -181,7 +192,7 @@ class DataFrame:
         if item.shape[1] != 1:
             raise ValueError
         df_selection = next(iter(item.rows))
-        if df_selection.dtype.kind != "b":
+        if df_selection.dtype.kind != "b":  # TODO: use DTYPE const
             raise TypeError
         return df_selection
 
@@ -212,7 +223,7 @@ class DataFrame:
             case _:
                 raise TypeError
 
-        if value.dtype.kind == "U":
+        if value.dtype.kind == "U":  # TODO: use DTYPE const?
             value = value.astype("O")
         self._data[key] = value
 
@@ -259,11 +270,11 @@ class DataFrame:
     def argmin(self):
         return self._agg(np.argmin)
 
-    def _agg(self, func):
+    def _agg(self, agg_func):
         new_data = {}
         for col, vals in self._data.items():
             try:
-                agg_val = func(vals)
+                agg_val = agg_func(vals)
             except TypeError:
                 continue
             new_data[col] = np.array([agg_val])
@@ -274,7 +285,7 @@ class DataFrame:
             {
                 col: (
                     vals == None  # noqa -> element-wise comparison
-                    if vals.dtype.kind == "O"
+                    if vals.dtype.kind == "O"  # TODO: use DTYPE const
                     else np.isnan(vals)
                 )
                 for col, vals in self._data.items()
@@ -315,7 +326,8 @@ class DataFrame:
             return dfs[0]
         return dfs
 
-    def _get_keys_row_counts(self, values, normalize):
+    @staticmethod
+    def _get_keys_row_counts(values, normalize):
         keys, raw_counts = np.unique(values, return_counts=True)
         order = np.argsort(-raw_counts)
         keys = keys[order]
@@ -360,6 +372,7 @@ class DataFrame:
         return self._non_agg(np.clip, a_min=lower, a_max=upper)
 
     # NB: The `round` method should ignore boolean columns. -> for all others kinds="bif"
+    # TODO: use DTYPE const for kinds?
     def round(self, n):
         return self._non_agg(np.round, kinds="if", decimals=n)
 
@@ -367,7 +380,7 @@ class DataFrame:
         return self._non_agg(np.copy)
 
     def diff(self, n=1):
-        def func(values):
+        def non_agg_func(values):
             values = values.astype("float")
             values_shifted = np.roll(values, n)
             values = values - values_shifted
@@ -377,10 +390,10 @@ class DataFrame:
                 values[n:] = np.NAN
             return values
 
-        return self._non_agg(func)
+        return self._non_agg(non_agg_func)
 
     def pct_change(self, n=1):
-        def func(values):
+        def non_agg_func(values):
             # TODO: potentially refactor -> similar to diff
             values = values.astype("float")
             values_shifted = np.roll(values, n)
@@ -391,9 +404,9 @@ class DataFrame:
                 values[n:] = np.NAN
             return values / values_shifted
 
-        return self._non_agg(func)
+        return self._non_agg(non_agg_func)
 
-    def _non_agg(self, func, kinds="bif", **kwargs):
+    def _non_agg(self, func, kinds="bif", **kwargs):  # TODO: use DTYPE const or similar
         return DataFrame(
             {
                 col: func(vals, **kwargs) if vals.dtype.kind in kinds else vals
@@ -478,7 +491,7 @@ class DataFrame:
                 )  # why?
             case _:
                 raise ValueError
-        if not asc:
+        if asc is False:
             order_indices = order_indices[::-1]
         return self[order_indices.tolist(), :]
 
@@ -496,34 +509,108 @@ class DataFrame:
         rows = np.random.choice(np.arange(len(self)), size=n, replace=replace).tolist()
         return self[rows, :]
 
-    def pivot_table(self, rows=None, columns=None, values=None, aggfunc=None):
-        pass
+    # ### Pivot ### #
+    def pivot_table(self, rows=None, columns=None, values=None, agg_func=None):
+        col_data, row_data, pivot_type = self._get_grouping_data(columns, rows)
+        val_data, agg_func = self._get_agg_data(values, agg_func)
+        agg_dict = self._get_agg_dict(
+            col_data, row_data, pivot_type, val_data, agg_func
+        )
+        return self._get_pivoted_data_frame(rows, pivot_type, agg_dict, agg_func)
 
-    # TODO: remove?
-    # @staticmethod
-    # def _add_docs():
-    #     agg_names = [
-    #         "min",
-    #         "max",
-    #         "mean",
-    #         "median",
-    #         "sum",
-    #         "var",
-    #         "std",
-    #         "any",
-    #         "all",
-    #         "argmax",
-    #         "argmin",
-    #     ]
-    #     agg_doc = """
-    #     Find the {} of each column
-    #
-    #     Returns
-    #     -------
-    #     DataFrame
-    #     """
-    #     for name in agg_names:
-    #         getattr(DataFrame, name).__doc__ = agg_doc.format(name)
+    def _get_grouping_data(self, columns, rows):
+        if rows is None and columns is None:
+            raise ValueError
+        pivot_type = PivotType.ALL
+        row_data = []
+        col_data = []
+        if rows:
+            row_data = self._data[rows]
+        else:
+            pivot_type = PivotType.COLUMNS
+
+        if columns:
+            col_data = self._data[columns]
+        else:
+            pivot_type = PivotType.ROWS
+        return col_data, row_data, pivot_type
+
+    def _get_agg_data(self, values, agg_func):
+        # FIXME
+        if values:
+            val_data = self._data[values]
+            if agg_func is None:
+                raise ValueError
+        else:
+            if agg_func is None:
+                agg_func = "size"
+                val_data = np.empty(len(self))
+            else:
+                raise ValueError
+        return val_data, agg_func
+
+    def _get_agg_dict(self, col_data, row_data, pivot_type, val_data, agg_func):
+        group_dict = self._get_group_dict(col_data, row_data, pivot_type, val_data)
+        return {
+            # NB: Since `aggf_unc` is a string, you will need to use the builtin `getattr` function
+            # to get the correct numpy function.
+            group: getattr(np, agg_func)(np.array(vals))
+            for group, vals in group_dict.items()
+        }
+
+    @staticmethod
+    def _get_group_dict(col_data, row_data, pivot_type, val_data):
+        group_dict = defaultdict(list)
+        match pivot_type:
+            case PivotType.COLUMNS:
+                for group, val in zip(col_data, val_data):
+                    group_dict[group].append(val)
+            case PivotType.ROWS:
+                for group, val in zip(row_data, val_data):
+                    group_dict[group].append(val)
+            case PivotType.ALL:
+                for group1, group2, val in zip(row_data, col_data, val_data):
+                    group_dict[(group1, group2)].append(val)
+        return group_dict
+
+    def _get_pivoted_data_frame(self, rows, pivot_type, agg_dict, agg_func):
+        match pivot_type:
+            case PivotType.COLUMNS:
+                return self._get_df_for_pt_columns(agg_dict)
+            case PivotType.ROWS:
+                return self._get_df_for_pt_rows(agg_dict, agg_func, rows)
+            case PivotType.ALL:
+                return self._get_df_for_pt_all(agg_dict, rows)
+
+    @staticmethod
+    def _get_df_for_pt_columns(agg_dict):
+        return DataFrame(
+            {col_name: np.array([agg_dict[col_name]]) for col_name in sorted(agg_dict)}
+        )
+
+    @staticmethod
+    def _get_df_for_pt_rows(agg_dict, agg_func, rows):
+        row_arr = np.array(list(agg_dict.keys()))
+        val_arr = np.array(list(agg_dict.values()))
+        order = np.argsort(row_arr)
+        return DataFrame({rows: row_arr[order], agg_func: val_arr[order]})
+
+    @staticmethod
+    def _get_df_for_pt_all(agg_dict, rows):
+        row_set = set()
+        col_set = set()
+        for group in agg_dict:
+            row_set.add(group[0])
+            col_set.add(group[1])
+
+        row_list = sorted(row_set)
+        col_list = sorted(col_set)
+        new_data = {rows: np.array(row_list)}
+        for col in col_list:
+            new_data[col] = np.array(
+                [agg_dict.get((row, col), np.nan) for row in row_list]
+            )
+        return DataFrame(new_data)
 
     # helpers
     @staticmethod

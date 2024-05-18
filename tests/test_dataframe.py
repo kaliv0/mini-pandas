@@ -552,31 +552,29 @@ class TestMoreMethods:
         df_answer = pdc.DataFrame({"a": a[::-1], "b": b[::-1]})
         assert_df_equals(df_result, df_answer)
 
+    def test_sample(self):
+        df_result = df7.sample(2, seed=1)
+        df_answer = pdc.DataFrame(
+            {"a": np.array(["a", "a"], dtype=object), "b": np.array([2.0, 5.1])}
+        )
+        assert_df_equals(df_result, df_answer)
 
-#
-#     def test_sample(self):
-#         df_result = df7.sample(2, seed=1)
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array(["a", "a"], dtype=object), "b": np.array([2.0, 5.1])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = df7.sample(frac=0.7, seed=1)
-#         df_answer = pdc.DataFrame(
-#             {
-#                 "a": np.array(["a", "a", "b"], dtype=object),
-#                 "b": np.array([2.0, 5.1, 6.0]),
-#             }
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#         with pytest.raises(TypeError):
-#             df7.sample(2.5)
-#
-#         with pytest.raises(ValueError):
-#             df7.sample(frac=-2)
-#
-#
+        df_result = df7.sample(frac=0.7, seed=1)
+        df_answer = pdc.DataFrame(
+            {
+                "a": np.array(["a", "a", "b"], dtype=object),
+                "b": np.array([2.0, 5.1, 6.0]),
+            }
+        )
+        assert_df_equals(df_result, df_answer)
+
+        with pytest.raises(TypeError):
+            df7.sample(2.5)
+
+        with pytest.raises(ValueError):
+            df7.sample(frac=-2)
+
+
 a8 = np.array(["b", "a", "a", "a", "b", "a", "a", "b"])
 b8 = np.array(["B", "A", "A", "A", "B", "B", "B", "A"])
 c8 = np.array([1, 2, 3, 4, 5, 6, 7, 8])
@@ -651,40 +649,39 @@ class TestGrouping:
         )
         assert_df_equals(df_results[1], df_answer)
 
+    def test_pivot_table_rows_or_cols(self):
+        df_result = df8.pivot_table(rows="a")
+        df_answer = pdc.DataFrame(
+            {"a": np.array(["a", "b"], dtype=object), "size": np.array([5, 3])}
+        )
+        assert_df_equals(df_result, df_answer)
 
-#     def test_pivot_table_rows_or_cols(self):
-#         df_result = df8.pivot_table(rows="a")
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array(["a", "b"], dtype=object), "size": np.array([5, 3])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = df8.pivot_table(rows="a", values="c", aggfunc="sum")
-#         df_answer = pdc.DataFrame(
-#             {"a": np.array(["a", "b"], dtype=object), "sum": np.array([22, 14])}
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = df8.pivot_table(columns="b")
-#         df_answer = pdc.DataFrame({"A": np.array([4]), "B": np.array([4])})
-#         assert_df_equals(df_result, df_answer)
-#
-#         df_result = df8.pivot_table(columns="a", values="c", aggfunc="sum")
-#         df_answer = pdc.DataFrame({"a": np.array([22]), "b": np.array([14])})
-#         assert_df_equals(df_result, df_answer)
-#
-#     def test_pivot_table_both(self):
-#         df_result = df8.pivot_table(rows="a", columns="b", values="c", aggfunc="sum")
-#         df_answer = pdc.DataFrame(
-#             {
-#                 "a": np.array(["a", "b"], dtype=object),
-#                 "A": np.array([9.0, 8.0]),
-#                 "B": np.array([13.0, 6.0]),
-#             }
-#         )
-#         assert_df_equals(df_result, df_answer)
-#
-#
+        df_result = df8.pivot_table(rows="a", values="c", agg_func="sum")
+        df_answer = pdc.DataFrame(
+            {"a": np.array(["a", "b"], dtype=object), "sum": np.array([22, 14])}
+        )
+        assert_df_equals(df_result, df_answer)
+
+        df_result = df8.pivot_table(columns="b")
+        df_answer = pdc.DataFrame({"A": np.array([4]), "B": np.array([4])})
+        assert_df_equals(df_result, df_answer)
+
+        df_result = df8.pivot_table(columns="a", values="c", agg_func="sum")
+        df_answer = pdc.DataFrame({"a": np.array([22]), "b": np.array([14])})
+        assert_df_equals(df_result, df_answer)
+
+    def test_pivot_table_both(self):
+        df_result = df8.pivot_table(rows="a", columns="b", values="c", agg_func="sum")
+        df_answer = pdc.DataFrame(
+            {
+                "a": np.array(["a", "b"], dtype=object),
+                "A": np.array([9.0, 8.0]),
+                "B": np.array([13.0, 6.0]),
+            }
+        )
+        assert_df_equals(df_result, df_answer)
+
+
 # movie = np.array(["field of dreams", "star wars"], dtype="O")
 # num = np.array(["5.1", "6"], dtype="O")
 # df_string = pdc.DataFrame({"movie": movie, "num": num})
