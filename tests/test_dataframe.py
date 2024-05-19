@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
 
-import pandas_cub as pdc
+import pandas_cub.dataframe as pdc
+
 # import pandas_cub_final as pdc
 from tests import assert_df_equals
 
@@ -364,6 +365,9 @@ b4 = np.array([11, 5, 5])
 c4 = np.array([3.4, np.nan, 3.4])
 df4 = pdc.DataFrame({"a": a4, "b": b4, "c": c4})
 
+# df42 = pdc.DataFrame({"a": np.array([10, 8, 3]), "b": np.array([5, 7, 9])})
+df42 = pdc.DataFrame({"a": np.array([10, 8, 9]), "b": np.array([5, 7, 3])})
+
 
 class TestOtherMethods:
     def test_isna(self):
@@ -407,25 +411,25 @@ class TestOtherMethods:
         df_answer = pdc.DataFrame({"c": c4})
         assert_df_equals(df_result, df_answer)
 
+    # df42 = pdc.DataFrame({"a": np.array([10, 8, 9]), "b": np.array([5, 7, 3])})
+    def test_diff(self):
+        df_result = df42.diff(1)
+        df_answer = pdc.DataFrame(
+            {"a": np.array([np.nan, -2, 1]), "b": np.array([np.nan, 2, -4])}
+        )
+        assert_df_equals(df_result, df_answer)
 
-# FIXME
-# def test_diff(self):
-#     df_result = df42.diff(1)
-#     df_answer = pdc.DataFrame(
-#         {"a": np.array([np.nan, 16, -2]), "b": np.array([np.nan, 1.7, -11.1])}
-#     )
-#     assert_df_equals(df_result, df_answer)
+    def test_pct_change(self):
+        # df42 = pdc.DataFrame({"a": np.array([10, 8, 9]), "b": np.array([5, 7, 3])})
 
-# FIXME
-# def test_pct_change(self):
-#     df_result = df42.pct_change(1)
-#     df_answer = pdc.DataFrame(
-#         {
-#             "a": np.array([np.nan, 16 / -11, -2 / 5]),
-#             "b": np.array([np.nan, 1.7 / 3.4, -11.1 / 5.1]),
-#         }
-#     )
-#     assert_df_equals(df_result, df_answer)
+        df_result = df42.pct_change(1)
+        df_answer = pdc.DataFrame(
+            {
+                "a": np.array([np.nan, -2 / 10, 1 / 8]),
+                "b": np.array([np.nan, 2 / 5, -4 / 7]),
+            }
+        )
+        assert_df_equals(df_result, df_answer)
 
 
 a5 = np.array([11, 5])

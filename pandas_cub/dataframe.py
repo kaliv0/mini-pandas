@@ -1,32 +1,16 @@
-from collections import defaultdict
-from enum import StrEnum
-
 import numpy as np
 
+from pandas_cub.constants import (
+    DFType,
+    PivotType,
+    DEFAULT_AGG_FUNC,
+    AGG_METHOD_NAMES,
+    BuildingParams,
+    Tokens,
+)
+from pandas_cub.utils import StringMethods
+
 __version__ = "0.0.1"
-
-"""
-TODO:
-- extract as method 'next(iter(item._data.values()))'
-- - or extract generic method get_first => next(iter())?
-- extract error throwing checks?
-- enable users to do row-wise aggregations (!?)
-- add property for self._data.items()
-- refactor _non_agg method -> extract kinds const (as enum ?) and adjust round method
-"""
-
-
-class PivotType(StrEnum):
-    ROWS = "rows"
-    COLUMNS = "columns"
-    ALL = "all"
-
-
-class DFType(StrEnum):  # TODO: rename e.g. BOOL="b"
-    U = "U"
-    O = "O"
-    B = "b"
-    F = "f"
 
 
 class DataFrame:
@@ -34,22 +18,19 @@ class DataFrame:
     Two-dimensional, size-mutable, potentially heterogeneous tabular data
     """
 
-    DTYPE_NAME = {
-        "O": "string",
-        "i": "int",
-        "f": "float",
-        "b": "bool",
-    }  # TODO: extract and combine with DFType
-
     def __init__(self, data):
         self._check_input_types(data)
         self._check_array_lengths(data)
         self._data = self._convert_unicode_to_object(data)
+
+        # compute once since DF isn't modified in place
+        self._rows = list(self._data.values())
+        self._items = self._data.items()
+
         self.str = StringMethods(self)
         self._add_docs()
 
-    @staticmethod
-    def _check_input_types(data):
+    def _check_input_types(self, data):
         if not isinstance(data, dict):
             raise TypeError("`data` must be a dictionary of 1-D NumPy arrays")
         for col, vals in data.items():
@@ -57,7 +38,7 @@ class DataFrame:
                 raise TypeError("All column names must be strings")
             if not isinstance(vals, np.ndarray):
                 raise TypeError("All values must be a 1-D NumPy array")
-            if vals.ndim != 1:  # use check_ndim method
+            if self._validate_ndim(vals):
                 raise ValueError("Each value must be a 1-D NumPy array")
 
     @staticmethod
@@ -71,15 +52,16 @@ class DataFrame:
     def _convert_unicode_to_object(data):
         return {
             col: (
-                vals.astype(DFType.O)
-                if vals.dtype.kind == DFType.U  # TODO extract method and use as lambda?
+                vals.astype(DFType.STRING)
+                if vals.dtype.kind == DFType.U_STRING
                 else vals
             )
             for col, vals in data.items()
         }
 
+    ###############################
     def __len__(self):
-        return len(next(iter(self.rows)))
+        return len(self._get_first(self._rows))
 
     @property
     def columns(self):
@@ -95,13 +77,9 @@ class DataFrame:
             raise TypeError("New column names must be strings")
         if len(columns) != len(set(columns)):
             raise ValueError("Column names must be unique")
-        self._data = dict(zip(columns, self.rows))
+        self._data = dict(zip(columns, self._rows))
 
-    # FIXME -> remove
-    @property
-    def rows(self):
-        return list(self._data.values())
-
+    ###############################
     @property
     def shape(self):
         """
@@ -114,14 +92,14 @@ class DataFrame:
         """
         Return a Numpy representation of the DataFrame
         """
-        return np.column_stack(tuple(self.rows))
+        return np.column_stack(tuple(self._rows))
 
     @property
     def dtypes(self):
         """
         Return the dtypes in the DataFrame.
         """
-        data_types = [self.DTYPE_NAME[row.dtype.kind] for row in self.rows]
+        data_types = [DFType(row.dtype.kind).name.lower() for row in self._rows]
         return DataFrame(
             {
                 "Column Name": np.array(self.columns),
@@ -129,6 +107,7 @@ class DataFrame:
             }
         )
 
+    ###############################
     def __getitem__(self, item):
         match item:
             case str():
@@ -140,7 +119,6 @@ class DataFrame:
             case tuple():
                 return self._getitem_tuple(item)
             case _:
-                # if we got so far, apparently something is wrong
                 raise TypeError(
                     "Select with either a string, a list, or a row and column"
                 )
@@ -174,45 +152,47 @@ class DataFrame:
                     "Row selection must be either an int, slice, list, or DataFrame"
                 )
 
+    def _get_df_selection(self, item):
+        if self._validate_shape(item):
+            raise ValueError("Can only pass a one column DataFrame for selection")
+        df_selection = self._get_first(item._rows)  # noqa
+        if df_selection.dtype.kind != DFType.BOOL:
+            raise TypeError("DataFrame must be a boolean")
+        return df_selection
+
     def _get_col_selection(self, selection):
         match selection:
             case int():
                 return [self.columns[selection]]
             case str():
                 return [selection]
-            case list():  # extract methods?
-                return [
-                    self.columns[col] if isinstance(col, int) else col
-                    for col in selection
-                ]
-            case slice():  # extract methods?
-                start = (
-                    self.columns.index(selection.start)
-                    if isinstance(selection.start, str)
-                    else selection.start
-                )
-                stop = (
-                    self.columns.index(selection.stop) + 1
-                    if isinstance(selection.stop, str)
-                    else selection.stop
-                )
-                step = selection.step
-                return self.columns[start:stop:step]
-            # Column selection must be either an int, string, list, or slice
+            case list():
+                return self._get_col_selection_from_list(selection)
+            case slice():
+                return self._get_col_selection_from_slice(selection)
             case _:
                 raise TypeError(
                     "Column selection must be either an int, string, list, or slice"
                 )
 
-    @staticmethod
-    def _get_df_selection(item):
-        if item.shape[1] != 1:
-            raise ValueError("Can only pass a one column DataFrame for selection")
-        df_selection = next(iter(item.rows))
-        if df_selection.dtype.kind != DFType.B:
-            raise TypeError("DataFrame must be a boolean")
-        return df_selection
+    def _get_col_selection_from_list(self, selection):
+        return [self.columns[col] if isinstance(col, int) else col for col in selection]
 
+    def _get_col_selection_from_slice(self, selection):
+        start = (
+            self.columns.index(selection.start)
+            if isinstance(selection.start, str)
+            else selection.start
+        )
+        stop = (
+            self.columns.index(selection.stop) + 1
+            if isinstance(selection.stop, str)
+            else selection.stop
+        )
+        step = selection.step
+        return self.columns[start:stop:step]
+
+    ###############################
     def __setitem__(self, key, value):
         # adds a new column or overwrites an old one
         if not isinstance(key, str):
@@ -220,19 +200,10 @@ class DataFrame:
 
         match value:
             case np.ndarray():
-                # TODO: extract checks as methods -> pass error messages
-                if value.ndim != 1:  # use check_ndim method
-                    raise ValueError("Setting array must be 1D")
-                if len(value) != len(self):
-                    raise ValueError("Setting array must be same length as DataFrame")
+                self._validate_ndarray_type(value)
             case DataFrame():
-                if value.shape[1] != 1:
-                    raise ValueError("Setting DataFrame must be one column")
-                if len(value) != len(self):
-                    raise ValueError(
-                        "Setting and Calling DataFrames must be the same length"
-                    )
-                value = next(iter(value.rows))
+                self._validate_df_type(value)
+                value = self._get_first(value._rows)  # noqa
             case str() | int() | float() | bool():
                 value = np.repeat(value, len(self))
             case _:
@@ -240,10 +211,23 @@ class DataFrame:
                     "Setting value must be a NParray, DataFrame, integer, string, float, or boolean"
                 )
 
-        if value.dtype.kind == DFType.U:
-            value = value.astype(DFType.O)
+        if value.dtype.kind == DFType.U_STRING:
+            value = value.astype(DFType.STRING)
         self._data[key] = value
 
+    def _validate_ndarray_type(self, value):
+        if self._validate_ndim(value):
+            raise ValueError("Setting array must be 1D")
+        if self._validate_len(value):
+            raise ValueError("Setting array must be same length as DataFrame")
+
+    def _validate_df_type(self, value):
+        if self._validate_shape(value):
+            raise ValueError("Setting DataFrame must be one column")
+        if self._validate_len(value):
+            raise ValueError("Setting and Calling DataFrames must be the same length")
+
+    ###############################
     def head(self, n=5):
         """
         Return the first n rows
@@ -257,7 +241,6 @@ class DataFrame:
         return self[-n:, :]
 
     # ### Aggregation methods ### #
-
     def min(self):
         return self._agg(np.min)
 
@@ -293,7 +276,7 @@ class DataFrame:
 
     def _agg(self, agg_func):
         new_data = {}
-        for col, vals in self._data.items():
+        for col, vals in self._items:
             try:
                 agg_val = agg_func(vals)
             except TypeError:
@@ -310,10 +293,10 @@ class DataFrame:
             {
                 col: (
                     vals == None  # noqa -> element-wise comparison
-                    if vals.dtype.kind == DFType.O
+                    if vals.dtype.kind == DFType.STRING
                     else np.isnan(vals)
                 )
-                for col, vals in self._data.items()
+                for col, vals in self._items
             }
         )
 
@@ -332,7 +315,7 @@ class DataFrame:
         """
         Return distinct elements in specified axis
         """
-        dfs = [DataFrame({col: np.unique(vals)}) for col, vals in self._data.items()]
+        dfs = [DataFrame({col: np.unique(vals)}) for col, vals in self._items]
         if len(dfs) == 1:
             return dfs[0]
         return dfs
@@ -342,7 +325,7 @@ class DataFrame:
         Count number of distinct elements in specified axis
         """
         return DataFrame(
-            {col: np.array([len(np.unique(vals))]) for col, vals in self._data.items()}
+            {col: np.array([len(np.unique(vals))]) for col, vals in self._items}
         )
 
     def value_counts(self, normalize=False):
@@ -350,7 +333,7 @@ class DataFrame:
         Return a Series containing the frequency of each distinct row in the Dataframe
         """
         dfs = []
-        for col, values in self._data.items():
+        for col, values in self._items:
             keys, raw_counts = self._get_keys_row_counts(values, normalize)
             df = DataFrame(
                 {
@@ -373,18 +356,14 @@ class DataFrame:
             raw_counts = raw_counts / raw_counts.sum()
         return keys, raw_counts
 
-    # TODO: we should probably update self._data ?
     def rename(self, columns):
         """
         Rename columns
         """
         if not isinstance(columns, dict):
             raise TypeError("`columns` must be a dictionary")
-        return DataFrame(
-            {columns.get(col, col): vals for col, vals in self._data.items()}
-        )
+        return DataFrame({columns.get(col, col): vals for col, vals in self._items})
 
-    # TODO: we should probably update self._data ?
     def drop(self, columns):
         """
         Drop specified labels from rows or columns
@@ -393,12 +372,9 @@ class DataFrame:
             columns = [columns]
         elif not isinstance(columns, list):
             raise TypeError("`columns` must be either a string or a list")
-        return DataFrame(
-            {col: vals for col, vals in self._data.items() if col not in columns}
-        )
+        return DataFrame({col: vals for col, vals in self._items if col not in columns})
 
     # ### Non-aggregation methods ### #
-
     def abs(self):
         """
         Return a DataFrame with absolute numeric value of each element
@@ -433,13 +409,11 @@ class DataFrame:
         """
         return self._non_agg(np.clip, a_min=lower, a_max=upper)
 
-    # NB: The `round` method should ignore boolean columns. -> for all others kinds="bif"
-    # TODO: use DTYPE const for kinds?
     def round(self, n):
         """
         Round a DataFrame to a variable number of decimal places
         """
-        return self._non_agg(np.round, kinds="if", decimals=n)
+        return self._non_agg(np.round, ignore_bool=True, decimals=n)
 
     def copy(self):
         """
@@ -453,47 +427,45 @@ class DataFrame:
         compared with another element in the DataFrame
         (default is element in previous row)
         """
-
-        def non_agg_func(values):
-            values = values.astype("float")  # TODO: extract const
-            values_shifted = np.roll(values, n)
-            values = values - values_shifted
-            if n >= 0:
-                values[:n] = np.NAN
-            else:
-                values[n:] = np.NAN
-            return values
-
-        return self._non_agg(non_agg_func)
+        return self._non_agg(self._diff_pct_agg_func, n=n, compute_fraction=False)
 
     def pct_change(self, n=1):
         """
         Fractional change between the current and a prior element
         """
+        return self._non_agg(self._diff_pct_agg_func, n=n, compute_fraction=True)
 
-        def non_agg_func(values):
-            # TODO: extract const
-            values = values.astype("float")
-            values_shifted = np.roll(values, n)
-            values = values - values_shifted
-            if n >= 0:
-                values[:n] = np.NAN
-            else:
-                values[n:] = np.NAN
+    def _diff_pct_agg_func(self, values, n, compute_fraction):
+        values = self._cast_to_float(values)
+        values_shifted = np.roll(values, n)
+        values = values - values_shifted
+        if n >= 0:
+            values[:n] = np.NAN
+        else:
+            values[n:] = np.NAN
+
+        if compute_fraction:
             return values / values_shifted
+        return values
 
-        return self._non_agg(non_agg_func)
+    @staticmethod
+    def _cast_to_float(values):
+        return values.astype(DFType.FLOAT.name.lower())
 
-    def _non_agg(self, func, kinds="bif", **kwargs):  # TODO: use DTYPE const or similar
+    def _non_agg(self, func, ignore_bool=False, **kwargs):
+        kinds = (
+            (DFType.INT, DFType.FLOAT)
+            if ignore_bool
+            else (DFType.BOOL, DFType.INT, DFType.FLOAT)
+        )
         return DataFrame(
             {
                 col: func(vals, **kwargs) if vals.dtype.kind in kinds else vals
-                for col, vals in self._data.items()
+                for col, vals in self._items
             }
         )
 
     # ### Arithmetic and comparison operators ### #
-
     def __add__(self, other):
         return self._oper("__add__", other)
 
@@ -550,14 +522,14 @@ class DataFrame:
 
     def _oper(self, op, other):
         if isinstance(other, DataFrame):
-            if other.shape[1] != 1:
+            if self._validate_shape(other):
                 raise ValueError("`other` must be a one-column DataFrame")
-            other = next(iter(other._data.values()))
+            other = self._get_first(other._data.values())
         return DataFrame(
             {
                 # retrieve the underlying numpy array method and call it directly
                 col: getattr(vals, op)(other)
-                for col, vals in self._data.items()
+                for col, vals in self._items
             }
         )
 
@@ -566,9 +538,7 @@ class DataFrame:
             case str():
                 order_indices = np.argsort(self._data[by])
             case list():
-                order_indices = np.lexsort(
-                    [self._data[col] for col in by[::-1]]
-                )  # why?
+                order_indices = np.lexsort([self._data[col] for col in by[::-1]])
             case _:
                 raise TypeError("`by` must be a str or a list")
         if asc is False:
@@ -619,32 +589,32 @@ class DataFrame:
         return col_data, row_data, pivot_type
 
     def _get_agg_data(self, values, agg_func):
-        # FIXME
         if values:
             val_data = self._data[values]
             if agg_func is None:
                 raise ValueError(
-                    "You must provide `aggfunc` when `values` is provided."
+                    "You must provide `agg_func` when `values` is provided."
                 )
         else:
             if agg_func is None:
-                agg_func = "size"  # TODO: extract const?
+                agg_func = DEFAULT_AGG_FUNC
                 val_data = np.empty(len(self))
             else:
-                raise ValueError("You cannot provide `aggfunc` when `values` is None")
+                raise ValueError("You cannot provide `agg_func` when `values` is None")
         return val_data, agg_func
 
     def _get_agg_dict(self, col_data, row_data, pivot_type, val_data, agg_func):
         group_dict = self._get_group_dict(col_data, row_data, pivot_type, val_data)
         return {
-            # NB: Since `agg_func` is a string, you will need to use the builtin `getattr` function
-            # to get the correct numpy function.
+            # NB: `agg_func` is a string
             group: getattr(np, agg_func)(np.array(vals))
             for group, vals in group_dict.items()
         }
 
     @staticmethod
     def _get_group_dict(col_data, row_data, pivot_type, val_data):
+        from collections import defaultdict
+
         group_dict = defaultdict(list)
         match pivot_type:
             case PivotType.COLUMNS:
@@ -699,25 +669,26 @@ class DataFrame:
 
     # ### Helpers ### #
     @staticmethod
+    def _validate_shape(item):
+        return item.shape[1] != 1
+
+    @staticmethod
+    def _validate_ndim(item):
+        return item.ndim != 1
+
+    def _validate_len(self, value):
+        return len(value) != len(self)
+
+    @staticmethod
+    def _get_first(collection):
+        return next(iter(collection))
+
+    @staticmethod
     def _add_docs():
-        # TODO: extract const
-        agg_names = [
-            "min",
-            "max",
-            "mean",
-            "median",
-            "sum",
-            "var",
-            "std",
-            "any",
-            "all",
-            "argmax",
-            "argmin",
-        ]
         agg_doc = """
         Find the {} of each column
         """
-        for name in agg_names:
+        for name in AGG_METHOD_NAMES:
             getattr(DataFrame, name).__doc__ = agg_doc.format(name)
 
     # ### jupyter helper methods ### #
@@ -735,9 +706,9 @@ class DataFrame:
 
     def _get_building_params(self):
         # returns num_head, num_tail, only_head
-        if len(self) <= 20:
-            return len(self), 10, True
-        return 10, 10, False
+        if len(self) <= BuildingParams.DEFAULT_COL_COUNT:
+            return len(self), BuildingParams.DEFAULT_NUM_TAIL, True
+        return BuildingParams.DEFAULT_NUM_HEAD, BuildingParams.DEFAULT_NUM_TAIL, False
 
     def _prepare_html_table(self):
         html = "<table><thead><tr><th></th>"
@@ -750,15 +721,15 @@ class DataFrame:
     def _build_html_head(self, num_head):
         html = ""
         for i in range(num_head):
-            html = f"<tr><td><strong>{i}</strong></td>"
-            for col, vals in self._data.items():
+            html += f"<tr><td><strong>{i}</strong></td>"
+            for col, vals in self._items:
                 kind = vals.dtype.kind
                 match kind:
-                    case DFType.F:
+                    case DFType.FLOAT:
                         html += f"<td>{vals[i]:10.3f}</td>"
-                    case DFType.B:
+                    case DFType.BOOL:
                         html += f"<td>{vals[i]}</td>"
-                    case DFType.O:
+                    case DFType.STRING:
                         v = vals[i]
                         if v is None:
                             v = "None"
@@ -778,14 +749,14 @@ class DataFrame:
         html += "</tr>"
         for i in range(-num_tail, 0):
             html += f"<tr><td><strong>{len(self) + i}</strong></td>"
-            for col, vals in self._data.items():
+            for col, vals in self._items:
                 kind = vals.dtype.kind
                 match kind:
-                    case DFType.F:
+                    case DFType.FLOAT:
                         html += f"<td>{vals[i]:10.3f}</td>"
-                    case DFType.B:
+                    case DFType.BOOL:
                         html += f"<td>{vals[i]}</td>"
-                    case DFType.O:
+                    case DFType.STRING:
                         v = vals[i]
                         if v is None:
                             v = "None"
@@ -800,105 +771,7 @@ class DataFrame:
         return "</tbody></table>"
 
 
-class StringMethods:
-    def __init__(self, df):
-        self._df = df
-
-    def capitalize(self, col):
-        return self._str_method(str.capitalize, col)
-
-    def center(self, col, width, fillchar=None):
-        if fillchar is None:
-            fillchar = " "
-        return self._str_method(str.center, col, width, fillchar)
-
-    def count(self, col, sub, start=None, stop=None):
-        return self._str_method(str.count, col, sub, start, stop)
-
-    def endswith(self, col, suffix, start=None, stop=None):
-        return self._str_method(str.endswith, col, suffix, start, stop)
-
-    def startswith(self, col, suffix, start=None, stop=None):
-        return self._str_method(str.startswith, col, suffix, start, stop)
-
-    def find(self, col, sub, start=None, stop=None):
-        return self._str_method(str.find, col, sub, start, stop)
-
-    def len(self, col):
-        return self._str_method(str.__len__, col)
-
-    def get(self, col, item):
-        return self._str_method(str.__getitem__, col, item)
-
-    def index(self, col, sub, start=None, stop=None):
-        return self._str_method(str.index, col, sub, start, stop)
-
-    def isalnum(self, col):
-        return self._str_method(str.isalnum, col)
-
-    def isalpha(self, col):
-        return self._str_method(str.isalpha, col)
-
-    def isdecimal(self, col):
-        return self._str_method(str.isdecimal, col)
-
-    def islower(self, col):
-        return self._str_method(str.islower, col)
-
-    def isnumeric(self, col):
-        return self._str_method(str.isnumeric, col)
-
-    def isspace(self, col):
-        return self._str_method(str.isspace, col)
-
-    def istitle(self, col):
-        return self._str_method(str.istitle, col)
-
-    def isupper(self, col):
-        return self._str_method(str.isupper, col)
-
-    def lstrip(self, col, chars):
-        return self._str_method(str.lstrip, col, chars)
-
-    def rstrip(self, col, chars):
-        return self._str_method(str.rstrip, col, chars)
-
-    def strip(self, col, chars):
-        return self._str_method(str.strip, col, chars)
-
-    def replace(self, col, old, new, count=None):
-        if count is None:
-            count = -1
-        return self._str_method(str.replace, col, old, new, count)
-
-    def swapcase(self, col):
-        return self._str_method(str.swapcase, col)
-
-    def title(self, col):
-        return self._str_method(str.title, col)
-
-    def lower(self, col):
-        return self._str_method(str.lower, col)
-
-    def upper(self, col):
-        return self._str_method(str.upper, col)
-
-    def zfill(self, col, width):
-        return self._str_method(str.zfill, col, width)
-
-    def encode(self, col, encoding="utf-8", errors="strict"):
-        return self._str_method(str.encode, col, encoding, errors)
-
-    def _str_method(self, method, col, *args):
-        old_values = self._df._data[col]  # FIXME
-        # TODO: use DTYPE
-        if old_values.dtype.kind != "O":
-            raise TypeError("The `str` accessor only works with string columns")
-        return DataFrame(
-            {col: np.array([method(val, *args) if val else val for val in old_values])}
-        )
-
-
+# ### Pandas methods ### #
 def read_csv(fn):
     """
     Read a comma-separated values (csv) file into DataFrame
@@ -911,23 +784,27 @@ def _create_data_frame(values):
     new_data = {}
     for col, vals in values.items():
         try:
-            # TODO: use DTYPE, add parsing ass dtype="boolean"?
-            new_data[col] = np.array(vals, dtype="int")
+            new_data[col] = np.array(vals, dtype=DFType.INT)
         except ValueError:
             try:
-                new_data[col] = np.array(vals, dtype="float")
+                new_data[col] = np.array(vals, dtype=DFType.FLOAT)
             except ValueError:
-                new_data[col] = np.array(vals, dtype="O")
+                try:
+                    new_data[col] = np.array(vals, dtype=DFType.BOOL)
+                except ValueError:
+                    new_data[col] = np.array(vals, dtype=DFType.STRING)
     return DataFrame(new_data)
 
 
 def _read_data_from_file(fn):
+    from collections import defaultdict
+
     values = defaultdict(list)
     with open(fn) as f:
         header = f.readline()
-        column_names = header.strip("\n").split(",")  # TODO: extract consts
+        column_names = header.strip(Tokens.NEW_LINE).split(Tokens.DELIMITER)
         for line in f:
-            vals = line.strip("\n").split(",")
+            vals = line.strip(Tokens.NEW_LINE).split(Tokens.DELIMITER)
             for val, name in zip(vals, column_names):
                 values[name].append(val)
     return values
