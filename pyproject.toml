@@ -1,0 +1,32 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=69.5.1", "wheel"]
+
+[project]
+authors = [
+    { name = "Kaloyan Ivanov", email = "kaloyan.ivanov88@gmail.com" },
+]
+description = "Custom implementation of `pandas` library"
+name = "mini-pandas"
+readme = "README.md"
+license = { file = "LICENSE" }
+dynamic = ["version"]
+
+requires-python = ">=3.11"
+
+dependencies = [
+    "numpy == 1.26.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "tox == 4.15.0",
+    "black == 24.4.2",
+    "pytest == 8.1.1",
+]
+
+[tool.setuptools]
+packages = ["mini_pandas"]
+
+[tool.setuptools.dynamic]
+version = { attr = "mini_pandas.__version__" }
