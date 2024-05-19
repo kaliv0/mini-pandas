@@ -2,7 +2,7 @@ import importlib
 
 import numpy as np
 
-from pandas_cub.constants import DFType
+from mini_pandas.constants import DFType
 
 
 class StringMethods:
@@ -95,7 +95,7 @@ class StringMethods:
         return self._str_method(str.encode, col, encoding, errors)
 
     def _str_method(self, method, col, *args):
-        df = importlib.import_module("pandas_cub.dataframe")
+        df = importlib.import_module("mini_pandas.dataframe")
 
         old_values = self._df._data[col]  # noqa
         if old_values.dtype.kind != DFType.STRING:
